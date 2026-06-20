@@ -1,0 +1,7 @@
+{"ts":"2026-06-20T06:01:14.822Z","phase":"egress-check","event":"load","modelId":"embeddings:c8fb5f8badf52854","durationMs":3011}
+{"ts":"2026-06-20T06:01:18.059Z","phase":"egress-check","event":"load","modelId":"medpsy:902cee35bc7ba456","durationMs":3209}
+{"ts":"2026-06-20T06:01:19.452Z","phase":"triage","event":"search","modelId":"c8fb5f8badf52854","promptTokens":26,"durationMs":1327}
+{"ts":"2026-06-20T06:01:46.157Z","phase":"triage","event":"completion","modelId":"902cee35bc7ba456","promptTokens":998,"ttftMs":1921,"tokensPerSec":32.93,"totalTokens":794,"backendDevice":"gpu","durationMs":26695}
+{"ts":"2026-06-20T06:01:50.078Z","phase":"triage","event":"completion","modelId":"902cee35bc7ba456","promptTokens":847,"ttftMs":1578,"tokensPerSec":38.39,"totalTokens":67,"backendDevice":"gpu","durationMs":3908}
+{"ts":"2026-06-20T06:01:50.323Z","phase":"egress-check","event":"unload","modelId":"medpsy:902cee35bc7ba456","durationMs":213}
+{"ts":"2026-06-20T06:01:50.484Z","phase":"egress-check","event":"unload","modelId":"embeddings:c8fb5f8badf52854","durationMs":161}

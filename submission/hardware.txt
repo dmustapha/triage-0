@@ -1,0 +1,26 @@
+=== Triage-0 target hardware (system_profiler SPHardwareDataType) ===
+Hardware:
+
+    Hardware Overview:
+
+      Model Name: MacBook Pro
+      Model Identifier: MacBookPro17,1
+      Model Number: MYDC2LL/A
+      Chip: Apple M1
+      Total Number of Cores: 8 (4 performance and 4 efficiency)
+      Memory: 8 GB
+      System Firmware Version: 13822.1.2
+      OS Loader Version: 13822.1.2
+      Activation Lock Status: Disabled
+
+
+=== OS ===
+ProductName:		macOS
+ProductVersion:		26.0.1
+BuildVersion:		25A362
+
+=== CPU/arch ===
+Darwin 25.0.0 arm64
+Apple M1
+memory (GB):
+8

@@ -1,0 +1,119 @@
+/* app.css - the Triage-0 tool page. Depends on tokens.css + base.css. */
+
+.app-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+.app-main{ padding-bottom:var(--s-8); display:grid; gap:18px; }
+
+/* numbered steps */
+.step-label{ display:flex; align-items:center; gap:11px; margin:0 0 14px; }
+.step-num{
+  width:26px; height:26px; border-radius:var(--r-pill); flex:none;
+  background:var(--surf-2); border:1px solid var(--line-2);
+  display:grid; place-items:center; font-size:13px; font-weight:700; color:var(--accent);
+}
+.step-label h2{ font-family:var(--font-display); font-size:20px; font-weight:600; margin:0; }
+.hint{ font-size:14px; color:var(--dim); margin:0 0 14px; }
+
+/* example chips row */
+.seeds{ display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+
+/* case input */
+textarea#case{
+  width:100%; min-height:104px; resize:vertical; font-family:var(--font-body); font-size:18px; line-height:1.55;
+  color:var(--ink); background:#0b0e0f; border:1px solid var(--line-2); border-radius:var(--r); padding:16px 17px;
+}
+textarea#case::placeholder{ color:var(--dim); }
+textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border-color:transparent; }
+
+.actions{ display:flex; gap:11px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+.actions .btn--primary{ font-size:17px; }
+#rec.is-recording{ background:var(--emerg); color:#fff; border-color:var(--emerg); }
+.status{ font-size:13.5px; color:var(--dim); }
+
+/* citation */
+.cite{
+  background:#0b0e0f; border:1px solid var(--line); border-left:3px solid var(--accent);
+  border-radius:0 var(--r) var(--r) 0; padding:15px 17px; margin-bottom:16px;
+  animation:cite-in .35s var(--ease) both;
+}
+@keyframes cite-in{ from{ opacity:0; transform:translateY(5px) } to{ opacity:1; transform:none } }
+.cite .from{ font-size:13px; color:var(--accent); font-weight:600; display:flex; align-items:center; gap:8px; }
+.cite .q{ display:block; margin-top:9px; font-size:16px; line-height:1.55; color:var(--ink); }
+.cite .src{ display:block; margin-top:9px; font-size:13px; color:var(--dim); }
+
+/* reasoning stream */
+.reason{
+  font-size:15px; line-height:1.6; color:var(--mut); background:#0b0e0f; border:1px solid var(--line);
+  border-radius:var(--r); padding:15px 16px; margin-bottom:18px; white-space:pre-wrap;
+  max-height:220px; overflow:auto;
+}
+.reason .lead{ display:flex; align-items:center; gap:9px; color:var(--dim); font-size:13.5px; margin-bottom:9px; }
+
+/* the triage card */
+.verdict{ border:1px solid var(--line-2); border-radius:var(--r); overflow:hidden; margin-bottom:18px; }
+.verdict .sev{
+  font-size:26px; padding:18px 20px; display:flex; align-items:center; gap:14px;
+}
+.verdict .sev.EMERGENCY{ background:var(--emerg); color:#fff; }
+.verdict .sev.URGENT{ background:var(--urgent); color:#1a1205; }
+.verdict .sev.ROUTINE{ background:var(--routine); color:var(--accent-ink); }
+.verdict .sev.SELF_CARE{ background:var(--self-care); color:#04121d; }
+.verdict .sev.UNKNOWN{ background:var(--unknown); color:#fff; }
+.sev-note{ padding:13px 20px; background:var(--surf-2); font-size:15px; color:var(--mut); }
+.action{ font-size:21px; line-height:1.45; font-weight:500; margin:0 0 10px; }
+.why{ font-size:15px; line-height:1.6; color:var(--mut); }
+.flags{ display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0; padding:0; list-style:none; }
+.flags li{
+  font-size:14px; color:var(--urgent); border:1px solid #5a4318; background:rgba(245,165,36,.08);
+  border-radius:var(--r-pill); padding:7px 14px;
+}
+.hear{ margin-top:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+#audioWrap audio{ width:100%; margin-top:14px; }
+.err{ color:var(--emerg); font-size:14px; margin-top:10px; }
+
+/* management plan (Task #22). Grounded, multi-component, every line cited. */
+.plan-pending{ margin-top:18px; font-size:13.5px; color:var(--dim); }
+.plan{
+  margin-top:20px; border:1px solid var(--line-2); border-radius:var(--r);
+  background:#0b0e0f; overflow:hidden; animation:cite-in .35s var(--ease) both;
+}
+.plan-head{
+  display:flex; align-items:center; gap:9px; padding:14px 17px; border-bottom:1px solid var(--line);
+  font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--ink);
+}
+.pgroup{ padding:14px 17px; border-bottom:1px solid var(--line); }
+.pgroup:last-of-type{ border-bottom:0; }
+.pgroup h4{ margin:0 0 10px; font-size:12.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); }
+.prow{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:5px 0; }
+.prow .ptext{ font-size:15px; line-height:1.5; color:var(--ink); }
+.cmini{ flex:none; font-size:11.5px; color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.med{ padding:9px 0; border-bottom:1px dashed var(--line); }
+.med:last-child{ border-bottom:0; padding-bottom:0; }
+.med:first-child{ padding-top:0; }
+.med-top{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.med-name{ font-size:16px; font-weight:600; color:var(--ink); }
+.med-sub{ margin-top:4px; font-size:13.5px; color:var(--mut); }
+.plan-foot{ padding:13px 17px; background:var(--surf-2); font-size:12.5px; line-height:1.5; color:var(--dim); }
+
+/* live performance readout */
+.perf-lead{ font-size:14px; color:var(--mut); margin:0 0 14px; }
+.perf-lead b{ color:var(--ink); font-weight:600; }
+.nums{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+}
+.num{ background:var(--surf-2); padding:15px 14px; }
+.num .k{ font-size:12px; color:var(--dim); }
+.num .v{
+  font-family:var(--font-display); font-size:25px; font-weight:700; margin-top:7px; font-variant-numeric:tabular-nums;
+}
+.num .v small{ font-size:13px; color:var(--mut); font-weight:500; font-family:var(--font-body); margin-left:2px; }
+.num.is-live .v{ color:var(--accent); }
+.perf-foot{ margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--dim); }
+.perf-foot a{ color:var(--accent); text-decoration:none; }
+@media (hover: hover){ .perf-foot a:hover{ text-decoration:underline; } }
+
+@media (max-width:560px){
+  .nums{ grid-template-columns:repeat(2,1fr); }
+  .verdict .sev{ font-size:22px; }
+  .actions .btn--primary{ flex:1; }
+}
