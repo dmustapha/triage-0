@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Triage-0">
+  <defs>
+    <linearGradient id="tg-bg" x1="10" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173a2e"/>
+      <stop offset="1" stop-color="#0f1d18"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#tg-bg)" stroke="#2d3c36" stroke-width="1.5"/>
+  <!-- triage pulse: a flat line, one decisive beat, back to flat. The brand mark. -->
+  <path d="M12 33h9l4.5-13 7 26 4.5-15h7" fill="none" stroke="#46c79a" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

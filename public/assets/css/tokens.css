@@ -1,0 +1,49 @@
+/* tokens.css - Triage-0 design system (Guided direction).
+   DESIGN_SYSTEM.md expressed as CSS variables, shared by every page (landing, app, proof).
+   Dark only. Severity is the only loud color; the surface stays calm. Self-hosted fonts (offline). */
+
+@import url("./fonts.css");
+
+:root{
+  /* surface, calm and low-chroma */
+  --bg:#0e1112;
+  --surf:#161a1c;
+  --surf-2:#1c2123;
+  --line:#272d2f;
+  --line-2:#343c3e;
+
+  /* text */
+  --ink:#eef2f1;
+  --mut:#9aa6a4;
+  --dim:#82908c;
+
+  /* the one interactive accent */
+  --accent:#46c79a;
+  --accent-ink:#04221a;
+  --accent-line:#245a47;
+  --accent-wash:rgba(70,199,154,.07);
+
+  /* severity, the only loud colors (each always paired with a text label) */
+  --emerg:#ff5e52;
+  --urgent:#f5a524;
+  --routine:#46c79a;
+  --self-care:#56a8ec;
+  --unknown:#737f7d;
+
+  /* type */
+  --font-display:"Bricolage Grotesque", sans-serif;
+  --font-body:"Hanken Grotesk", sans-serif;
+
+  /* spacing scale (Schoger): one scale, no magic numbers */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
+
+  /* radius: two values plus a pill */
+  --r:12px;
+  --r-lg:20px;
+  --r-pill:999px;
+
+  /* motion (Kowalski): functional UI under 200ms, ease-out, nothing on keypress */
+  --ease:cubic-bezier(.2,.6,.2,1);
+  --t-fast:120ms;
+  --t-ui:160ms;
+}

@@ -1,0 +1,79 @@
+{
+  "project": "Triage-0",
+  "tagline": "Offline clinical decision-support for community health workers — 100% on-device.",
+  "generated": "2026-06-20",
+  "summary": "Every inference (speech-to-text, MedPsy reasoning, embeddings/RAG, text-to-speech) runs locally via @qvac/sdk on the device's CPU/GPU. There are NO cloud AI calls and NO outbound network connections during operation. The patient's case never leaves the machine.",
+
+  "aiInferenceCalls": [],
+  "cloudApiCalls": [],
+  "thirdPartyApiCalls": [],
+
+  "networkPolicy": {
+    "duringInference": "ZERO outbound connections. Proven from the code side by scripts/egress-check.ts and the automated test tests/integration/offline-egress.test.ts, which monkeypatch net.connect / tls.connect / dns.lookup / http(s).request / fetch and assert no external host is contacted during a full triage. A negative control in the same test proves the guard is not a no-op.",
+    "duringDemo": "Runs fully in airplane mode once the models are cached.",
+    "inProcessSockets": "The @qvac/sdk inference worker communicates with the app over a local UNIX-domain socket (IPC), which is not network egress."
+  },
+
+  "disclosedNetworkEvents": [
+    {
+      "event": "first-run model asset download",
+      "frequency": "one-time per machine (cached at ~/.qvac/models thereafter; skippable by pre-placing the GGUF/bin files)",
+      "purpose": "Fetch the quantized model weights. These are weight downloads only — ZERO AI inference is performed remotely; all inference is local.",
+      "assets": [
+        {
+          "name": "MedPsy-1.7B (Q4_K_M)",
+          "role": "clinical reasoning LLM",
+          "source": "https://huggingface.co/qvac/MedPsy-1.7B-GGUF",
+          "approxSizeMB": 1280,
+          "license": "Apache-2.0"
+        },
+        {
+          "name": "GTE-large (fp16)",
+          "role": "text embeddings for RAG retrieval",
+          "source": "https://huggingface.co/ChristianAzinn/gte-large-gguf",
+          "approxSizeMB": 670,
+          "license": "MIT"
+        },
+        {
+          "name": "Whisper tiny.en (Q8_0)",
+          "role": "speech-to-text",
+          "source": "https://huggingface.co/ggerganov/whisper.cpp",
+          "approxSizeMB": 44,
+          "license": "MIT"
+        },
+        {
+          "name": "Supertonic (Q8_0)",
+          "role": "text-to-speech",
+          "source": "bundled via @qvac/sdk model registry (qvac_models_compiled/ggml/supertonic)",
+          "approxSizeMB": 252,
+          "license": "Apache-2.0"
+        }
+      ]
+    }
+  ],
+
+  "dataSources": [
+    {
+      "name": "WHO IMCI Chart Booklet (March 2014)",
+      "use": "Childhood-illness triage protocols (RAG corpus). Born-digital, text-extractable, ingested verbatim.",
+      "url": "https://cdn.who.int/media/docs/default-source/mca-documents/child/imci-integrated-management-of-childhood-illness/imci-in-service-training/imci-chart-booklet.pdf",
+      "isbn": "978-92-4-150682-3",
+      "copyright": "© WHO 2014",
+      "fetchedAt": "build-time (offline thereafter)"
+    },
+    {
+      "name": "WHO mhGAP Intervention Guide v2.0 (2016)",
+      "use": "Mental-health protocols (RAG corpus). Ingested verbatim.",
+      "url": "https://iris.who.int/items/9c42b21c-dfc9-4c2b-b32d-e1caa5befbbc",
+      "copyright": "© WHO 2016",
+      "fetchedAt": "build-time (offline thereafter)"
+    }
+  ],
+
+  "verification": {
+    "zeroEgress": "node --import tsx scripts/egress-check.ts   (prints ZERO outbound connections, exit 0)",
+    "automatedTest": "npm test   (includes tests/integration/offline-egress.test.ts)",
+    "perfLog": "submission/perf-log.csv + submission/perf-log.json — real on-device TTFT / tokens-per-sec / load-unload rows",
+    "reproduce": "npm install --maxsockets=1  →  npm run ingest  →  npm start  →  open http://localhost:3010"
+  }
+}
