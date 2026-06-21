@@ -28,6 +28,8 @@ import {
   allowedClassesFor,
   reconcileMalaria,
   reconcileDiarrhoea,
+  hasBloodInStool,
+  deterministicReasoning,
   CLASSIFICATION_ENUM,
   type ProtocolEntry,
 } from "./protocol-table.js";
@@ -255,7 +257,12 @@ export async function triageFromHits(
       // belongs to the frozen WHO table, not to the model's prose or to RAG.
       // (a) UNKNOWN → the case grounded a chunk but fits no listed class; abstain rather than force a
       //     wrong class onto a clinical card.
-      if (normalizeClassification(ex.classification) === "UNKNOWN") {
+      // Blood in the stool is an unambiguous WHO red flag → DYSENTERY, even when the model abstains
+      // (it misses blood on terse phrasings and can be talked out of it by an injected instruction).
+      // This guard runs BEFORE the UNKNOWN abstain so a bloody-diarrhoea case never escalates to a
+      // clinician-with-no-plan when WHO has a clear answer (ciprofloxacin).
+      const bloodStool = hasBloodInStool(caseText);
+      if (normalizeClassification(ex.classification) === "UNKNOWN" && !bloodStool) {
         return {
           card: abstainCard("This case does not match an encoded WHO IMCI or mhGAP classification, so Triage-0 escalates to a clinician rather than guess."),
           citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN",
@@ -265,6 +272,7 @@ export async function triageFromHits(
       // blood→DYSENTERY + SEVERE-DEHYDRATION over-call guard.
       let cls = reconcileMalaria(ex.classification, caseText);
       cls = reconcileDiarrhoea(cls, caseText, hasEmergencySign(caseText, ex.red_flags));
+      if (bloodStool) cls = "DYSENTERY";
       let entry = lookupProtocol(cls);
       const severity = entry
         ? finalizeSeverityV2(cls, ex.action, caseText, ex.red_flags)
@@ -286,7 +294,7 @@ export async function triageFromHits(
             severity,
             action: entry.action.text,
             protocol_citation: { doc: docFor(entry.protocol), page: entry.citation.page, section: entry.citation.text },
-            reasoning: ex.reasoning,
+            reasoning: deterministicReasoning(cls, entry),
             red_flags: ex.red_flags,
           }
         : {
