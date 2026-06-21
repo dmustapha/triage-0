@@ -23,6 +23,15 @@ test("named treatable conditions + home medicine -> URGENT", () => {
   assert.equal(classifyToSeverity("MODERATE DEPRESSION", "psychoeducation, follow-up in 2 weeks"), "URGENT");
 });
 
+test("named treatable condition beats counselling phrases in the action -> URGENT (no under-call)", () => {
+  // F3: a real treatable-condition action often contains counselling phrases ("advise the mother",
+  // "continue feeding"). Those must NOT down-band a NAMED condition to ROUTINE (home care) — that is a
+  // dangerous under-call (a child needing antibiotics sent home). The named diagnosis wins over ROUTINE.
+  assert.equal(classifyToSeverity("PNEUMONIA", "Give amoxicillin and advise the mother to return"), "URGENT");
+  assert.equal(classifyToSeverity("SOME DEHYDRATION", "give ORS and continue feeding"), "URGENT");
+  assert.equal(classifyToSeverity("DYSENTERY", "ciprofloxacin; advise the mother on home care"), "URGENT");
+});
+
 test("explicit mild / negation classifications -> ROUTINE (not caught by the PNEUMONIA token)", () => {
   assert.equal(classifyToSeverity("NO PNEUMONIA: COUGH OR COLD", "advise the mother on home care, return if worse"), "ROUTINE");
   assert.equal(classifyToSeverity("NO DEHYDRATION", "Plan A, continue feeding, advise mother"), "ROUTINE");

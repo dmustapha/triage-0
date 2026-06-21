@@ -19,20 +19,29 @@ const EMERGENCY_RE = /\b(VERY SEVERE|(?<!NOT )(?<!NON-)(?<!NON )SEVERE|GENERAL D
 // needs antibiotics (URGENT/treat-&-follow-up), so it must fall through to the named-condition token
 // rather than be home-care. The EMERGENCY lookbehind already keeps "NOT SEVERE" out of EMERGENCY.
 const ROUTINE_RE = /\b(NO PNEUMONIA|COUGH OR COLD|NO DEHYDRATION|HOME CARE|REASSURE|SOOTHE THE THROAT|ADVISE (?:THE )?MOTHER|CONTINUE FEEDING)\b/;
-// "Yellow": a named treatable condition or a "give/treat ... + follow-up" disposition.
-const URGENT_RE = /\b(PNEUMONIA|DEHYDRATION|DYSENTERY|MALARIA|ANAEMIA|MALNUTRITION|EAR INFECTION|DEPRESSION|PSYCHOSIS|EPILEPSY|SELF-?HARM|GIVE|TREAT|AMOXICILLIN|ANTIBIOTIC|ORS|ORAL REHYDRATION|FOLLOW-?UP)\b/;
+// "Yellow", part 1 — a NAMED treatable condition. This MUST win over the ROUTINE counselling phrases:
+// a real IMCI/mhGAP action for a treatable condition routinely contains "advise the mother" /
+// "continue feeding", and banding such a case ROUTINE (home care) is a dangerous UNDER-call (a child
+// who needs antibiotics sent home). PNEUMONIA/DEHYDRATION carry a (?<!NO ) lookbehind so the explicit
+// "NO PNEUMONIA" / "NO DEHYDRATION" classifications still fall through to ROUTINE.
+const NAMED_CONDITION_RE = /\b((?<!NO )PNEUMONIA|(?<!NO )DEHYDRATION|DYSENTERY|MALARIA|ANAEMIA|MALNUTRITION|EAR INFECTION|DEPRESSION|PSYCHOSIS|EPILEPSY|SELF-?HARM)\b/;
+// "Yellow", part 2 — a treat/give disposition with no named condition. This LOSES to ROUTINE (a "give
+// fluids, advise the mother" home-care line is routine), so it is checked after ROUTINE.
+const DISPOSITION_RE = /\b(GIVE|TREAT|AMOXICILLIN|ANTIBIOTIC|ORS|ORAL REHYDRATION|FOLLOW-?UP)\b/;
 
 /**
  * Map a model-produced classification + action to a triage band from the protocol wording alone.
- * Order matters: severe overrides everything; explicit mild/negation classifications win over the
- * named-condition token; a matched protocol with an unclear band defaults to URGENT (a safe NON-
- * emergency that still tells the worker to act) rather than guessing self-care.
+ * Order matters: (1) severe/danger overrides everything; (2) a NAMED treatable condition is URGENT even
+ * when the action carries counselling phrases (no under-call); (3) explicit mild/negation wording is
+ * ROUTINE; (4) a bare treat/give disposition is URGENT; (5) a matched-but-unclear band defaults to URGENT
+ * (a safe NON-emergency that still tells the worker to act) rather than guessing self-care.
  */
 export function classifyToSeverity(classification: string, action: string): Severity {
   const t = `${classification} ${action}`.toUpperCase();
   if (EMERGENCY_RE.test(t)) return "EMERGENCY";
+  if (NAMED_CONDITION_RE.test(t)) return "URGENT";
   if (ROUTINE_RE.test(t)) return "ROUTINE";
-  if (URGENT_RE.test(t)) return "URGENT";
+  if (DISPOSITION_RE.test(t)) return "URGENT";
   return "URGENT";
 }
 

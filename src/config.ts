@@ -51,7 +51,11 @@ export const config = {
 
 export function medpsySpec(): ModelSpec {
   const src = config.modelId === "4b" ? MEDPSY_4B : MEDPSY_1_7B_LOCAL;
-  return { role: "medpsy", modelSrc: src, modelType: "llm", ctxSize: 4096 };
+  // ctx 3072 (was 4096): measured peak is ~1230 prompt + ≤1024 reason ≈ 2250 tokens, so 3072 keeps a
+  // comfortable margin while trimming KV-cache RAM + load time on the 8GB target. (cache-type-k/v and
+  // flash_attn are NOT exposed by @qvac/sdk@0.13.3 — verified absent from the SDK dist — so ctx is the
+  // only supported KV lever here.)
+  return { role: "medpsy", modelSrc: src, modelType: "llm", ctxSize: 3072 };
 }
 
 export const registry = {
