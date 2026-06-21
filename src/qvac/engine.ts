@@ -107,7 +107,10 @@ export async function completionTimed(args: {
   const final = await run.final;
   const durationMs = performance.now() - t0;
   const stats: QvacStats = final.stats ?? ZERO_STATS;
-  const finalText = final.contentText ?? final.text ?? final.content ?? text;
+  // Use `||` not `??`: a completed-but-empty `contentText` (model hit the predict cap mid-<think> and
+  // emitted no post-think content) must fall through to the streamed `text` accumulator, which holds the
+  // real reasoning. `??` would keep the empty string and starve the extract pass → spurious retry failure.
+  const finalText = final.contentText || final.text || final.content || text;
   const toolCalls = (final.toolCalls ?? final.tool_calls ?? []) as unknown[];
 
   logPerf({

@@ -18,7 +18,7 @@
   <div class="wrap wrap--narrow">
     <header class="app-head">
       <a class="brand" href="/" aria-label="Triage-0 home">
-        <span class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46c79a" stroke-width="2.2"><path d="M3 12h4l2-6 4 14 2-8h6"/></svg></span>
+        <span class="mark"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#46c79a" stroke-width="2.2"><path d="M3 12h4l2-6 4 14 2-8h6"/></svg></span>
         <span>
           <span class="wordmark">Triage<span>-0</span></span>
           <span class="tag" style="display:block">offline clinical guidance</span>
@@ -28,37 +28,38 @@
     </header>
 
     <main class="app-main">
+      <h1 class="sr-only">Triage-0 clinical guidance</h1>
       <!-- step 1 -->
-      <section>
-        <div class="step-label"><span class="step-num">1</span><h2 class="display">Describe the patient</h2></div>
+      <section aria-labelledby="h-describe">
+        <div class="step-label"><span class="step-num">1</span><h2 id="h-describe" class="display">Describe the patient</h2></div>
         <div class="panel">
           <p class="hint">Speak or type the age and what you see. Tap an example to try one.</p>
           <div class="seeds" id="seeds"></div>
-          <textarea id="case" placeholder="For example: two year old, cough for three days, breathing fast, still drinking."></textarea>
+          <textarea id="case" aria-label="Patient case" placeholder="For example: two year old, cough for three days, breathing fast, still drinking."></textarea>
           <div class="actions">
-            <button class="btn btn--ghost" id="rec" type="button"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>Speak</button>
-            <button class="btn btn--primary" id="assess" type="button">Get guidance<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-            <span id="status" class="status"></span>
+            <button class="btn btn--ghost" id="rec" type="button"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>Speak</button>
+            <button class="btn btn--primary" id="assess" type="button">Get guidance<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+            <span id="status" class="status" role="status"></span>
           </div>
         </div>
       </section>
 
       <!-- step 2 -->
-      <section id="result" class="hidden">
-        <div class="step-label"><span class="step-num">2</span><h2 class="display">What the guideline says</h2></div>
+      <section id="result" class="hidden" aria-labelledby="h-guideline">
+        <div class="step-label"><span class="step-num">2</span><h2 id="h-guideline" class="display">What the guideline says</h2></div>
         <div class="panel">
           <div id="citationBox" class="hidden"></div>
-          <div id="reasoningWrap" class="hidden">
-            <div class="muted" style="display:flex; align-items:center; gap:9px; margin-bottom:9px; font-size:13.5px"><span class="spin"></span><span id="reasonLabel">Searching the guidelines</span></div>
+          <div id="reasoningWrap" class="hidden" aria-live="polite" aria-atomic="false">
+            <div class="muted" style="display:flex; align-items:center; gap:9px; margin-bottom:9px; font-size:13.5px"><span class="spin" aria-hidden="true"></span><span id="reasonLabel">Searching the guidelines</span></div>
             <div class="reason" id="reasoning"></div>
           </div>
-          <div id="card" class="hidden"></div>
-          <div id="err" class="err"></div>
+          <div id="card" class="hidden" role="status" aria-live="polite"></div>
+          <div id="err" class="err" role="alert" aria-live="assertive"></div>
         </div>
       </section>
 
       <!-- live performance -->
-      <section>
+      <section aria-label="Live performance">
         <div class="panel">
           <p class="perf-lead"><b>This ran on the device.</b> No network was used.</p>
           <div class="nums">

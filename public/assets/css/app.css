@@ -53,11 +53,11 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
 .verdict .sev{
   font-size:26px; padding:18px 20px; display:flex; align-items:center; gap:14px;
 }
-.verdict .sev.EMERGENCY{ background:var(--emerg); color:#fff; }
+.verdict .sev.EMERGENCY{ background:var(--emerg); color:#1a0604; }
 .verdict .sev.URGENT{ background:var(--urgent); color:#1a1205; }
 .verdict .sev.ROUTINE{ background:var(--routine); color:var(--accent-ink); }
 .verdict .sev.SELF_CARE{ background:var(--self-care); color:#04121d; }
-.verdict .sev.UNKNOWN{ background:var(--unknown); color:#fff; }
+.verdict .sev.UNKNOWN{ background:var(--unknown); color:#0c0c0c; }
 .sev-note{ padding:13px 20px; background:var(--surf-2); font-size:15px; color:var(--mut); }
 .action{ font-size:21px; line-height:1.45; font-weight:500; margin:0 0 10px; }
 .why{ font-size:15px; line-height:1.6; color:var(--mut); }
@@ -116,4 +116,5 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
   .nums{ grid-template-columns:repeat(2,1fr); }
   .verdict .sev{ font-size:22px; }
   .actions .btn--primary{ flex:1; }
+  .reason{ max-height:150px; }
 }

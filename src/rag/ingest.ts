@@ -76,7 +76,15 @@ export function looksLikeCipher(s: string): boolean {
   return cipher / tokens.length > 0.2;
 }
 
-export const usableChunk = (s: string) => hasLexicalContent(s) && looksLikeEnglish(s) && !looksLikeCipher(s);
+/** A weight-band dosing table is legitimately low on function words (mostly drug names, mg/kg, tablet
+ *  counts), so looksLikeEnglish can wrongly drop it — and that is the one chunk a medicine plan needs.
+ *  Accept a dosing chunk even when it reads as non-English; still gated by !looksLikeCipher so glyph
+ *  garbage is rejected. (On the current corpus the dosing chunks already survive; this hardens any future
+ *  re-ingest.) */
+const looksLikeDosing = (s: string) =>
+  /\b(mg|ml|kg|tablet|tablets|syrup|capsule|amoxicillin|paracetamol|ciprofloxacin|cotrimoxazole|ORS|zinc)\b/i.test(s);
+export const usableChunk = (s: string) =>
+  hasLexicalContent(s) && (looksLikeEnglish(s) || looksLikeDosing(s)) && !looksLikeCipher(s);
 
 /**
  * Repair born-digital chart-PDF extraction artifacts before chunking:

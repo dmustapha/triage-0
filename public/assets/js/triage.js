@@ -5,12 +5,15 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
 
-  // Inline SVG icons (no emoji in a clinical tool).
+  // Inline SVG icons (no emoji in a clinical tool). Decorative: aria-hidden so screen
+  // readers skip the path noise; the surrounding text carries the meaning.
   var ICON = {
-    speaker: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>',
-    guide: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg>',
-    alert: '<svg class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 8v5M12 16.5v.5"/><path d="M10.3 3.8 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/></svg>',
-    check: '<svg class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7"/></svg>'
+    speaker: '<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 8a5 5 0 0 1 0 8"/></svg>',
+    guide: '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h11l3 3v13H5z"/><path d="M9 9h7M9 13h7M9 17h4"/></svg>',
+    alert: '<svg aria-hidden="true" class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 8v5M12 16.5v.5"/><path d="M10.3 3.8 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/></svg>',
+    check: '<svg aria-hidden="true" class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+    rec: '<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>',
+    stop: '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
   };
 
   var SEEDS = [
@@ -55,21 +58,33 @@
   var mediaRec = null, chunks = [];
   if ($("rec")) $("rec").onclick = async function () {
     if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); return; }
+    // Feature-detect: some browsers (and insecure origins) have neither. Fail to typing, not to a throw.
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      $("status").textContent = "Recording is not available here. Type the case instead.";
+      return;
+    }
+    var stream = null;
     try {
-      var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks = [];
       mediaRec = new MediaRecorder(stream);
       mediaRec.ondataavailable = function (e) { chunks.push(e.data); };
       mediaRec.onstop = async function () {
         stream.getTracks().forEach(function (t) { t.stop(); });
         $("rec").classList.remove("is-recording");
-        $("rec").innerHTML = ICON_REC + "Speak";
+        $("rec").innerHTML = ICON.rec + "Speak";
         $("status").textContent = "Listening to what you said";
         var blob = new Blob(chunks, { type: mediaRec.mimeType || "audio/webm" });
         var fd = new FormData();
         fd.append("audio", blob, "case.webm");
         try {
           var r = await fetch("/transcribe", { method: "POST", body: fd });
+          if (!r.ok) {
+            var emsg = "That recording was too long. Try a shorter case.";
+            try { var ej = await r.json(); if (ej && ej.error) emsg = ej.error; } catch (e2) {}
+            $("status").textContent = emsg;
+            return;
+          }
           var j = await r.json();
           if (j.text) $("case").value = j.text.trim();
           $("status").textContent = j.perf ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s") : "";
@@ -77,14 +92,14 @@
       };
       mediaRec.start();
       $("rec").classList.add("is-recording");
-      $("rec").innerHTML = ICON_STOP + "Stop";
+      $("rec").innerHTML = ICON.stop + "Stop";
       $("status").textContent = "Listening. Tap stop when done.";
     } catch (e) {
+      // Stop any mic track we managed to acquire so the mic light does not stay on.
+      if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
       $("status").textContent = "Microphone is off. Type the case instead.";
     }
   };
-  var ICON_REC = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>';
-  var ICON_STOP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 
   // ---- render ----
   function renderCitation(c) {
@@ -111,13 +126,18 @@
       '<div class="action">' + esc(card.action) + "</div>" +
       (card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
       (flags ? '<ul class="flags">' + flags + "</ul>" : "") +
-      (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending">Preparing the full management plan</div>' : "") +
+      (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">Preparing the full management plan</div>' : "") +
       '<div class="hear">' +
         '<button class="btn btn--ghost" id="speak" type="button">' + ICON.speaker + "Listen to this</button>" +
         '<span id="ttsStatus" class="status"></span>' +
       "</div>" +
       '<div id="audioWrap"></div>';
     $("speak").onclick = function () { speak(card.action); };
+    // On a small screen the verdict can land below the fold once the reasoning box has grown;
+    // bring the card into view so the severity is the first thing the worker sees.
+    if (window.matchMedia && window.matchMedia("(max-width:560px)").matches) {
+      $("card").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   // ---- management plan (Task #22) ----
@@ -173,10 +193,14 @@
   }
 
   function handleEvent(block) {
+    // SSE comment frames (keep-alives) start with ":". Ignore them, they carry no event.
+    if (block.charAt(0) === ":") return;
     var ev = (block.match(/^event: (.*)$/m) || [])[1];
     var dataLine = (block.match(/^data: (.*)$/m) || [])[1];
     if (!ev || !dataLine) return;
-    var d = JSON.parse(dataLine);
+    var d;
+    // A malformed frame must be skipped, not kill the whole stream.
+    try { d = JSON.parse(dataLine); } catch (e) { return; }
     if (ev === "citation") {
       renderCitation(d);
       $("reasonLabel").textContent = "Reading the matched guideline";
@@ -184,9 +208,12 @@
       $("hTtft").textContent = (d.ttftMs / 1000).toFixed(1) + " s";
     } else if (ev === "reasoning") {
       var r = $("reasoning");
+      // Only autoscroll if the worker is already near the bottom, so reading back does not get yanked.
+      var atBottom = r.scrollHeight - r.scrollTop - r.clientHeight < 40;
       r.textContent += d.delta.replace(/<\/?think>/g, "");
-      r.scrollTop = r.scrollHeight;
+      if (atBottom) r.scrollTop = r.scrollHeight;
     } else if (ev === "card") {
+      gotTerminal = true;
       renderCard(d.card);
       if (d.perf) {
         if (d.perf.ttftMs != null) $("hTtft").textContent = (d.perf.ttftMs / 1000).toFixed(1) + " s";
@@ -196,20 +223,29 @@
     } else if (ev === "plan") {
       renderPlan(d.plan);
     } else if (ev === "abstain") {
+      gotTerminal = true;
       renderCard(d.card);
     } else if (ev === "error") {
+      gotTerminal = true;
       $("err").textContent = d.error;
       $("reasoningWrap").classList.add("hidden");
     }
   }
+  // Set true when a terminal frame (card/abstain/error) arrives, so we can tell a clean
+  // finish from a stream that closed early and left a blank card.
+  var gotTerminal = false;
 
   // ---- assess -> /triage (SSE) ----
-  if ($("assess")) $("assess").onclick = async function () {
+  async function runAssess() {
     var caseText = $("case").value.trim();
     if (!caseText) { $("status").textContent = "Describe or record a case first."; $("case").focus(); return; }
+    gotTerminal = false;
     $("assess").disabled = true;
+    var assessLabel = $("assess").innerHTML;
+    $("assess").textContent = "Working...";
     $("status").textContent = "";
     $("result").classList.remove("hidden");
+    $("result").setAttribute("aria-busy", "true");
     $("citationBox").classList.add("hidden");
     $("card").classList.add("hidden");
     $("err").textContent = "";
@@ -240,16 +276,29 @@
         var i;
         while ((i = buf.indexOf("\n\n")) >= 0) { handleEvent(buf.slice(0, i)); buf = buf.slice(i + 2); }
       }
+      // Stream closed cleanly but no card/abstain/error arrived: do not leave a silent blank card.
+      if (!gotTerminal) {
+        $("err").textContent = "The guidance did not finish. Try again.";
+        $("reasoningWrap").classList.add("hidden");
+      }
     } catch (e) {
       $("err").textContent = "Could not get guidance. " + e.message;
       $("reasoningWrap").classList.add("hidden");
     } finally {
       // Re-enable in finally so a mid-stream interruption never leaves the button dead.
       $("assess").disabled = false;
+      $("assess").innerHTML = assessLabel;
+      $("result").removeAttribute("aria-busy");
     }
-  };
+  }
+  if ($("assess")) $("assess").onclick = runAssess;
+  // Ctrl/Cmd+Enter from the case box submits, the way a clinician expects.
+  if ($("case")) $("case").addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runAssess(); }
+  });
 
   // ---- listen -> /tts ----
+  var lastTtsUrl = null;
   async function speak(text) {
     var st = $("ttsStatus");
     st.textContent = "Reading it aloud";
@@ -261,8 +310,17 @@
       });
       if (!r.ok) { st.textContent = "Could not read that aloud."; return; }
       var blob = await r.blob();
+      // Free the previous object URL before making a new one, so repeated listens do not leak.
+      if (lastTtsUrl) { URL.revokeObjectURL(lastTtsUrl); lastTtsUrl = null; }
       var url = URL.createObjectURL(blob);
-      $("audioWrap").innerHTML = '<audio controls autoplay src="' + url + '"></audio>';
+      lastTtsUrl = url;
+      $("audioWrap").innerHTML = "";
+      var audio = document.createElement("audio");
+      audio.controls = true;
+      audio.autoplay = true;
+      audio.src = url;
+      audio.onerror = function () { st.textContent = "Could not play that audio."; };
+      $("audioWrap").appendChild(audio);
       var perf = r.headers.get("X-Perf");
       st.textContent = perf ? ("spoken in " + (JSON.parse(perf).durationMs / 1000).toFixed(1) + " s") : "";
     } catch (e) {

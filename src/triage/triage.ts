@@ -25,7 +25,7 @@ import type { ChatMessage } from "../qvac/sdk.js";
 const MAX_EXTRACT_ATTEMPTS = 3;
 /** Reason-pass token budget. High enough to finish the <think> block + conclusion on a dense case
  *  (the danger-sign case needed ~900). The demo path (E-5) overrides this lower for latency. */
-const DEFAULT_REASON_PREDICT = 1024;
+const DEFAULT_REASON_PREDICT = Number(process.env.REASON_PREDICT) || 1024;
 
 const GROUNDING_RULE =
   "CRITICAL GROUNDING RULE: the protocol excerpt explicitly lists which clinical signs map to which " +
@@ -223,7 +223,14 @@ export async function runTriage(
   if (groundedHits.length === 0) {
     return { card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" };
   }
-  const result = await triageFromHits(caseText, groundedHits, ctx, { ...opts, retrieval });
+  let result: TriageResult;
+  try {
+    result = await triageFromHits(caseText, groundedHits, ctx, { ...opts, retrieval });
+  } catch {
+    // Extract exhausted MAX_EXTRACT_ATTEMPTS invalid passes. Keep the "always a schema-valid card"
+    // invariant for non-streaming callers: degrade to an abstain/escalate card rather than throw.
+    return { card: abstainCard(), citationChunk: groundedHits[0] ?? null, attempts: MAX_EXTRACT_ATTEMPTS, retrieval, classification: "" };
+  }
   // Task #22: attach the grounded management plan (non-streaming path used by tests + runTriage callers).
   // The streaming server path assembles it separately so the card lands first (progressive enhancement).
   result.card.plan = await assemblePlan(result.classification, result.card.severity, groundedHits, ctx);
@@ -247,11 +254,14 @@ export async function retrieveGrounding(
   const hits = degraded
     ? keywordSearch(queryText, 4)
     : await search({ embedModelId: ctx.embedId!, queryText, k: 4, phase: "triage" });
-  // Semantic scores compare to the calibrated cosine threshold; keyword scores are a different scale
-  // (term coverage) and only need to be non-zero (per store.ts D5). Keep the top few grounded chunks.
-  const groundedHits = hits
-    .filter((h) => (degraded ? h.score > 0 : h.score >= config.ragScoreThreshold))
-    .slice(0, 3);
+  // Semantic scores compare to the calibrated cosine threshold. Keyword scores are term-coverage
+  // (hits/terms, store.ts D5) on a different scale — but `> 0` disables abstain in degraded mode (any
+  // chunk sharing ONE incidental 4+char token false-accepts an off-domain case). Require ≥2 covered
+  // terms when the query has ≥2 usable terms, so abstain still holds without an embedder.
+  const usableTerms = queryText.toLowerCase().split(/\W+/).filter((t) => t.length > 3).length;
+  const passes = (h: SearchHit) =>
+    degraded ? (usableTerms >= 2 ? h.score * usableTerms >= 2 : h.score > 0) : h.score >= config.ragScoreThreshold;
+  const groundedHits = hits.filter(passes).slice(0, 3);
   return { groundedHits, retrieval: degraded ? "keyword" : "semantic" };
 }
 
@@ -353,13 +363,24 @@ function rulesFor(proto?: string): PlanRuleset {
   return proto === "mhGAP" ? PLAN_RULES.mhGAP : PLAN_RULES.IMCI;
 }
 
-/** Threshold-gated retrieval for one component query (mirrors retrieveGrounding's gating). */
+// The 6 plan-component queries are FIXED strings per classification and the RAG corpus is static for the
+// life of the process, so the same query always returns the same hits. Memoize query->hits: after the
+// first triage of a classification, all 6 component retrievals are cache hits (no embed call), removing
+// ~1s of sequential embeds from every subsequent plan. Fresh Map per process (cleared on restart).
+const _componentCache = new Map<string, SearchHit[]>();
+
+/** Threshold-gated retrieval for one component query (mirrors retrieveGrounding's gating), memoized. */
 async function retrieveComponent(query: string, ctx: TriageContext, k = 2): Promise<SearchHit[]> {
+  const cacheKey = `${k}::${query}`;
+  const cached = _componentCache.get(cacheKey);
+  if (cached) return cached;
   const degraded = config.residentMode === "fallback" || !ctx.embedId;
   const hits = degraded
     ? keywordSearch(query, k)
     : await search({ embedModelId: ctx.embedId!, queryText: query, k, phase: "triage" });
-  return hits.filter((h) => (degraded ? h.score > 0 : h.score >= config.ragScoreThreshold));
+  const filtered = hits.filter((h) => (degraded ? h.score > 0 : h.score >= config.ragScoreThreshold));
+  _componentCache.set(cacheKey, filtered);
+  return filtered;
 }
 
 function normalize(s: string): string {
@@ -395,9 +416,13 @@ function matchVerbatim(
   max = 5,
   prefer?: RegExp,
 ): { text: string; hit: SearchHit }[] {
+  // Deterministic source order: score desc, then id asc. Without the id tiebreak, two near-tie chunks
+  // (e.g. follow-up "in 3 days" vs "in 5 days") can swap run-to-run and flip the chosen line. `prefer`
+  // then floats chunks naming the classification to the front, within that stable order.
+  const sorted = [...sources].sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   const ordered = prefer
-    ? [...sources.filter((c) => prefer.test(c.text)), ...sources.filter((c) => !prefer.test(c.text))]
-    : sources;
+    ? [...sorted.filter((c) => prefer.test(c.text)), ...sorted.filter((c) => !prefer.test(c.text))]
+    : sorted;
   const out: { text: string; hit: SearchHit }[] = [];
   const seen = new Set<string>();
   for (const re of patterns) {
@@ -446,7 +471,11 @@ export async function assemblePlan(
     // with that protocol's own retrieval vocabulary + phrasing patterns. Without this, an adult mhGAP
     // depression case leaks IMCI paediatric advice ("continue breastfeeding") and misses its own
     // mental-health plan. Same-protocol only.
-    const proto = primaryHits[0]?.protocol;
+    // Fence keyed on the CONCLUDED classification, not just the top hit: pick the protocol of the chunk
+    // that names the conclusion, so an mhGAP "DEPRESSION" that retrieved an IMCI chunk at rank 0 still
+    // builds an mhGAP plan (right vocabulary + referral), not an IMCI one.
+    const clsRe = new RegExp(classification.trim().split(/\s+/)[0].replace(/[^a-z0-9]/gi, "") || ".", "i");
+    const proto = (primaryHits.find((h) => clsRe.test(h.text)) ?? primaryHits[0])?.protocol;
     const rules = rulesFor(proto);
     const q = rules.queries(classification);
     const comp: Record<string, SearchHit[]> = {};
@@ -484,10 +513,12 @@ export async function assemblePlan(
     plan.return_now = matchVerbatim(dedupe([...primary, ...sameProto(comp.return_now)]), rules.return_now)
       .map((g) => ({ sign: g.text, citation: citationOf(g.hit) }));
 
-    // Single-value fields: prefer the line from a chunk naming this classification (its first word), so
-    // follow-up/referral come from the right row rather than whichever chunk matched first.
-    const clsRe = new RegExp(classification.trim().split(/\s+/)[0].replace(/[^a-z0-9]/gi, ""), "i");
-    const fu = matchVerbatim(dedupe([...primary, ...sameProto(comp.follow_up)]), rules.follow_up, 1, clsRe)[0];
+    // Single-value fields: prefer the line from a chunk naming this classification (clsRe, defined above),
+    // so follow-up/referral come from the right row. Follow-up additionally prefers the SMALLEST interval
+    // (earliest review) among matches — deterministic and clinically safest.
+    const fus = matchVerbatim(dedupe([...primary, ...sameProto(comp.follow_up)]), rules.follow_up, 5, clsRe);
+    const fu = [...fus].sort((a, b) =>
+      parseInt(a.text.match(/\d+/)?.[0] ?? "999", 10) - parseInt(b.text.match(/\d+/)?.[0] ?? "999", 10))[0];
     if (fu) plan.follow_up = { when: fu.text, citation: citationOf(fu.hit) };
 
     // Referral is shown only when it is the actual disposition: an EMERGENCY (IMCI "refer urgently") or

@@ -61,6 +61,13 @@ function mapPath(): string {
  * a server that queried before `npm run ingest` finished would otherwise serve degraded citations
  * forever. We re-check the file on every call and reload when it appears or changes.
  */
+let _mapHealthy = true;
+/** False when the sidecar file EXISTS but failed to parse — surfaced via /health so a corrupted citation
+ *  map is visible BEFORE a demo, instead of silently shipping "(citation metadata unavailable)" cards. */
+export function citationMapHealthy(): boolean {
+  return _mapHealthy;
+}
+
 export function loadCitationMap(): CitationMap {
   const p = mapPath();
   if (!existsSync(p)) return _map ?? (_map = {}); // transient empty; _mapMtime stays stale → reloads when file appears
@@ -69,7 +76,10 @@ export function loadCitationMap(): CitationMap {
   try {
     _map = JSON.parse(readFileSync(p, "utf8")) as CitationMap;
     _mapMtime = mtime;
-  } catch {
+    _mapHealthy = true;
+  } catch (err) {
+    if (_mapHealthy) console.error(`[store] citation sidecar at ${p} failed to parse — citations degrade until fixed:`, (err as Error)?.message);
+    _mapHealthy = false;
     _map ??= {};
   }
   return _map;

@@ -12,9 +12,11 @@ import tls from "node:tls";
 import dns from "node:dns";
 import http from "node:http";
 import https from "node:https";
+import http2 from "node:http2";
+import dgram from "node:dgram";
 
 export interface EgressViolation {
-  kind: "dns" | "tcp" | "tls" | "http" | "https" | "fetch";
+  kind: "dns" | "tcp" | "tls" | "http" | "https" | "fetch" | "http2" | "udp";
   target: string;
 }
 
@@ -114,6 +116,53 @@ export class EgressGuard {
       }) as typeof fetch;
       this.restores.push(() => { globalThis.fetch = origFetch; });
     }
+
+    // http2.connect — HTTP/2 (e.g. gRPC-web). connect(authority[, options][, listener]).
+    const origH2 = http2.connect;
+    (http2 as { connect: unknown }).connect = (...args: unknown[]) => {
+      const a = args[0];
+      let host: string | undefined;
+      try { const u = typeof a === "string" ? new URL(a) : a instanceof URL ? a : undefined; host = u?.hostname; } catch { /* ignore */ }
+      guard.record("http2", host);
+      return (origH2 as (...x: unknown[]) => unknown).apply(http2, args);
+    };
+    this.restores.push(() => { (http2 as { connect: unknown }).connect = origH2; });
+
+    // dns.resolve* — the resolver family (distinct from dns.lookup), incl. the promises variants.
+    for (const name of ["resolve", "resolve4", "resolve6", "resolveAny"] as const) {
+      const orig = (dns as Record<string, unknown>)[name];
+      if (typeof orig === "function") {
+        (dns as Record<string, unknown>)[name] = (hostname: string, ...rest: unknown[]) => {
+          guard.record("dns", hostname);
+          return (orig as (...x: unknown[]) => unknown).call(dns, hostname, ...rest);
+        };
+        this.restores.push(() => { (dns as Record<string, unknown>)[name] = orig; });
+      }
+      const origP = (dns.promises as Record<string, unknown>)[name];
+      if (typeof origP === "function") {
+        (dns.promises as Record<string, unknown>)[name] = (hostname: string, ...rest: unknown[]) => {
+          guard.record("dns", hostname);
+          return (origP as (...x: unknown[]) => unknown).call(dns.promises, hostname, ...rest);
+        };
+        this.restores.push(() => { (dns.promises as Record<string, unknown>)[name] = origP; });
+      }
+    }
+
+    // dgram (UDP) — patch each created socket's send; the address arg (the string after the numeric port)
+    // is the egress target. Current deps use no UDP; this hardens the proof against dependency drift.
+    const origDgram = dgram.createSocket;
+    (dgram as { createSocket: unknown }).createSocket = (...args: unknown[]) => {
+      const sock = (origDgram as (...x: unknown[]) => dgram.Socket).apply(dgram, args);
+      const origSend = sock.send.bind(sock);
+      (sock as { send: unknown }).send = (...sargs: unknown[]) => {
+        const portIdx = sargs.findIndex((x) => typeof x === "number");
+        const addr = portIdx >= 0 && typeof sargs[portIdx + 1] === "string" ? (sargs[portIdx + 1] as string) : undefined;
+        guard.record("udp", addr);
+        return (origSend as (...x: unknown[]) => unknown)(...sargs);
+      };
+      return sock;
+    };
+    this.restores.push(() => { (dgram as { createSocket: unknown }).createSocket = origDgram; });
   }
 
   disarm(): void {
