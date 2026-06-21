@@ -8,6 +8,7 @@
 // a severe/Pink classification requires a general danger sign or stridor; chest indrawing or fast
 // breathing alone is the home-treatment band).
 import type { Severity } from "./schema.js";
+import { lookupProtocol } from "./protocol-table.js";
 
 // "Pink": wording that means severe disease / urgent referral / a pre-referral first dose.
 // The negative lookbehinds keep "NOT SEVERE" / "NON-SEVERE" out of the EMERGENCY band (they fall
@@ -95,4 +96,28 @@ export function finalizeSeverity(
     if (!hasEmergencySign(caseText, redFlags) && PNEUMONIA_SIGN_RE.test(hay)) return "URGENT";
   }
   return band;
+}
+
+/**
+ * REDESIGN severity (Tier B). When the classification is table-encoded (protocol-table.ts), severity is
+ * the frozen colour-band value (Pink→EMERGENCY, Yellow→URGENT, Green→ROUTINE) — NOT a heuristic on model
+ * prose — so a "MALARIA" case is URGENT by table law, deterministically. For an unencoded class it falls
+ * back to the legacy classifyToSeverity heuristic. The danger-sign invariant then applies in BOTH
+ * directions on top: a genuine general danger sign ESCALATES any band to EMERGENCY (WHO: a danger sign
+ * means urgent referral), and a pure pneumonia-sign EMERGENCY with no danger sign is DOWNGRADED to URGENT
+ * (the 2014 home-treatment merge — unchanged from finalizeSeverity). Negation-aware via hasEmergencySign.
+ */
+export function finalizeSeverityV2(
+  classification: string,
+  action: string,
+  caseText: string,
+  redFlags: string[] = [],
+): Severity {
+  const entry = lookupProtocol(classification);
+  const base = entry ? entry.severity : classifyToSeverity(classification, action);
+  // Escalate: a true general danger sign outranks any classification band.
+  if (hasEmergencySign(caseText, redFlags)) return "EMERGENCY";
+  // Downgrade: an EMERGENCY justified ONLY by a pneumonia sign (no danger sign) is the home-treatment band.
+  if (base === "EMERGENCY" && PNEUMONIA_SIGN_RE.test(`${caseText} ${redFlags.join(" ")}`)) return "URGENT";
+  return base;
 }
