@@ -30,9 +30,13 @@ export const ManagementPlanSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1),
-        dose: z.string().optional(), // weight-band guidance, e.g. "By age/weight band" — NEVER a fabricated mg
-        frequency: z.string().optional(), // e.g. "Two times daily"
-        duration: z.string().optional(), // e.g. "5 days"
+        strength: z.string().optional(), // e.g. "250 mg tablet or 250 mg per 5 ml syrup"
+        dose: z.string().optional(), // legacy "By weight band" fallback when no `bands`
+        frequency: z.string().optional(), // e.g. "give two times daily for 5 days"
+        duration: z.string().optional(),
+        bands: z // real per-weight-band amounts (sourced from the WHO dosing tables, never fabricated)
+          .array(z.object({ band: z.string().min(1), dose: z.string().min(1) }))
+          .optional(),
         citation: PlanCitationSchema,
       }),
     )
@@ -40,7 +44,10 @@ export const ManagementPlanSchema = z.object({
   supportive: z.array(z.object({ item: z.string().min(1), citation: PlanCitationSchema })).default([]),
   home_care: z.array(z.object({ advice: z.string().min(1), citation: PlanCitationSchema })).default([]),
   return_now: z.array(z.object({ sign: z.string().min(1), citation: PlanCitationSchema })).default([]),
-  follow_up: z.object({ when: z.string().min(1), citation: PlanCitationSchema }).nullable().default(null),
+  follow_up: z
+    .object({ when: z.string().min(1), detail: z.string().optional(), citation: PlanCitationSchema })
+    .nullable()
+    .default(null),
   referral: z.object({ criterion: z.string().min(1), citation: PlanCitationSchema }).nullable().default(null),
 });
 export type ManagementPlan = z.infer<typeof ManagementPlanSchema>;

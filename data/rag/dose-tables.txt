@@ -1,0 +1,39 @@
+# WHO IMCI Chart Booklet (2014) — per-weight-band drug dosing tables.
+#
+# PROVENANCE: transcribed faithfully from the chart's dosing pages via
+#   `pdftotext -layout data/protocols/imci-chart-booklet.pdf`
+# (the RAG ingest mangled these tables — e.g. it fused "2 tablets" + "10 ml" into "210 ml" — so the
+# weight-band numbers are sourced here from the PDF's clean text layer instead). This file is the
+# auditable source for the dosing shown on the card: every band line in src/triage/protocol-table.ts is a
+# verbatim substring of a line below, enforced by tests/unit/protocol-table.test.ts (the dose-safety gate).
+# Page numbers are the WHO chart-booklet page.
+
+[Amoxicillin] (IMCI p.16) 250 mg tablet or 250 mg per 5 ml syrup — give two times daily for 5 days
+2 months up to 12 months (4 - <10 kg): 1 tablet or 5 ml
+12 months up to 3 years (10 - <14 kg): 2 tablets or 10 ml
+3 years up to 5 years (14-19 kg): 3 tablets or 15 ml
+
+[Ciprofloxacin] (IMCI p.16) 250 mg or 500 mg tablet — give 15 mg/kg two times daily for 3 days
+Less than 6 months: 1/2 of a 250 mg tablet or 1/4 of a 500 mg tablet
+6 months up to 5 years: 1 of a 250 mg tablet or 1/2 of a 500 mg tablet
+
+[Zinc] (IMCI p.23) 20 mg tablet
+2 months up to 6 months: 1/2 tablet daily for 14 days
+6 months or more: 1 tablet daily for 14 days
+
+[Artemether-lumefantrine] (IMCI p.17) 20 mg artemether and 120 mg lumefantrine tablet — give two times daily for 3 days
+5 - <10 kg (2 months up to 12 months): 1 tablet per dose
+10 - <14 kg (12 months up to 3 years): 1 tablet per dose
+14 - <19 kg (3 years up to 5 years): 2 tablets per dose
+
+[ORS] (IMCI p.23) Plan B — give recommended amount of ORS over 4-hour period
+< 6 kg (up to 4 months): 200 - 450 ml
+6 - <10 kg (4 months up to 12 months): 450 - 800 ml
+10 - <12 kg (12 months up to 2 years): 800 - 960 ml
+12 - 19 kg (2 years up to 5 years): 960 - 1600 ml
+
+[Iron] (IMCI p.18) ferrous sulfate + folate tablet (60 mg elemental iron) or ferrous fumarate syrup (100 mg per 5 ml) — give one dose daily for 14 days
+2 months up to 4 months (4 - <6 kg): 1.00 ml syrup
+4 months up to 12 months (6 - <10 kg): 1.25 ml syrup
+12 months up to 3 years (10 - <14 kg): 1/2 tablet or 2.00 ml
+3 years up to 5 years (14 - 19 kg): 1/2 tablet or 2.5 ml
