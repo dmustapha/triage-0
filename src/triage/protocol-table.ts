@@ -563,7 +563,7 @@ export const CLASSIFICATION_ENUM: string[] = [
 const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
   { test: /cough|breath|indrawing|stridor|wheez|pneumonia|\bchest\b|cyanos|grunt/i, classes: ["SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "PNEUMONIA", "COUGH OR COLD"] },
   { test: /fever|febrile|malaria|temperature|\bhot\b|stiff neck/i, classes: ["VERY SEVERE FEBRILE DISEASE", "MALARIA", "FEVER: NO MALARIA"] },
-  { test: /diarrh|loose stool|watery stool|\bstool\b|dehydrat|skin pinch|sunken|\bORS\b|runny poo/i, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "DYSENTERY"] },
+  { test: /diarrh|loose stool|watery stool|\bstools?\b|\bmotions?\b|dehydrat|skin pinch|sunken|\bORS\b|runny poo|\bblood\b|bloody|\bdysentery\b/i, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "DYSENTERY"] },
   { test: /\bear\b|mastoid|behind the ear/i, classes: ["MASTOIDITIS", "ACUTE EAR INFECTION", "CHRONIC EAR INFECTION"] },
   { test: /pallor|\bpale\b|an[ae]mia/i, classes: ["SEVERE ANAEMIA", "ANAEMIA"] },
   // Malnutrition needs an anthropometric/oedema sign (wasting, low MUAC, swollen feet) — NOT just poor
@@ -637,12 +637,73 @@ export function reconcileMalaria(classification: string, caseText: string): stri
 export function reconcileDiarrhoea(classification: string, caseText: string, dangerSignPresent: boolean): string {
   const norm = normalizeClassification(classification);
   const isDehydration = norm === "SEVERE DEHYDRATION" || norm === "SOME DEHYDRATION" || norm === "NO DEHYDRATION";
-  if (isDehydration && /blood in (?:the )?stool|bloody (?:stool|diarrh)|blood in (?:the )?diarrh/i.test(caseText)) return "DYSENTERY";
+  if (isDehydration && hasBloodInStool(caseText)) return "DYSENTERY";
   if (norm === "SEVERE DEHYDRATION" && !dangerSignPresent &&
       !/very (?:slow|sunken)|unconscious|lethargic|not able to drink|unable to drink|skin pinch.{0,15}very/i.test(caseText)) {
     return "SOME DEHYDRATION";
   }
   return classification;
+}
+
+/**
+ * Deterministic blood-in-stool detector. Blood in the stool is an unambiguous WHO red flag: bloody
+ * diarrhoea is DYSENTERY and needs an antibiotic, never a "no dehydration / nothing" disposition. The
+ * 1.7B model is unreliable here — it misses blood on terse phrasings ("blood and mucus", "stools with
+ * blood") and can be talked out of it by an injected instruction. So we pin it: any blood term co-
+ * occurring with a stool/diarrhoea context (or the word "dysentery") forces DYSENTERY across every path,
+ * including the model-UNKNOWN abstain branch. Erring toward DYSENTERY on blood+stool is the clinically
+ * conservative direction (antibiotic + assessment), which is the safe failure mode for a triage tool.
+ */
+export function hasBloodInStool(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  if (/\bdysentery\b/.test(t)) return true;
+  // Negation guard: "no blood", "no visible blood", "without (any) blood", "blood-free" must NOT trigger.
+  // Kept tight (adjective-only gap) so "no danger signs, blood in stool" is not falsely negated.
+  if (/\bno (?:visible |obvious |fresh |any )?blood|without (?:any )?blood|blood[- ]free/.test(t)) return false;
+  const blood = /\bblood\b|\bbloody\b|blood-?stained|blood-?streaked/.test(t);
+  const stoolContext = /diarrh|\bstools?\b|\bmotions?\b|\bloose\b|watery|\bpoo\b|mucus/.test(t);
+  return blood && stoolContext;
+}
+
+/**
+ * Deterministic, class-DEFINING rationale for the card's "Why" line on encoded classes. The design is
+ * "the table is truth, the model only parses" — so the displayed reasoning must come from the final
+ * classification, NOT the model's free text. The model's prose is stale after a deterministic reconcile
+ * (it reasoned toward the class it first picked) and can be poisoned by a prompt-injection. Each line
+ * states the WHO rule that DEFINES the class (true for every case of that class), so it can never
+ * contradict the card's classification, severity, action, or dosing. Unencoded classes keep the model's
+ * sentence (the legacy RAG fallback path). Generic fallback covers any class not explicitly mapped.
+ */
+const CLASS_REASONING: Record<string, string> = {
+  "SEVERE PNEUMONIA OR VERY SEVERE DISEASE": "Cough or difficult breathing with a general danger sign (or chest indrawing/stridor) → severe; refer urgently.",
+  "PNEUMONIA": "Fast breathing for age with no general danger sign → pneumonia; treat with oral amoxicillin.",
+  "COUGH OR COLD": "Cough with no fast breathing, no chest indrawing, and no danger sign → no pneumonia; home care, no antibiotic.",
+  "VERY SEVERE FEBRILE DISEASE": "Fever with a general danger sign or stiff neck → very severe febrile disease; refer urgently.",
+  "MALARIA": "Fever with malaria risk and no confirmatory test (or a positive test) → WHO no-test rule: treat as malaria.",
+  "FEVER: NO MALARIA": "Fever with a negative malaria test and no malaria risk → not malaria; no antimalarial.",
+  "SEVERE DEHYDRATION": "Diarrhoea with a danger sign (lethargic/unconscious, very sunken eyes, or skin pinch very slow) → severe; Plan C and refer.",
+  "SOME DEHYDRATION": "Two or more of restless/irritable, sunken eyes, drinks eagerly, slow skin pinch → some dehydration; Plan B (ORS) and zinc.",
+  "NO DEHYDRATION": "Diarrhoea without enough signs for some or severe dehydration → no dehydration; Plan A home fluids and zinc.",
+  "DYSENTERY": "Blood in the stool → WHO classifies bloody diarrhoea as dysentery, which needs an antibiotic, not fluids alone.",
+  "MASTOIDITIS": "Tender swelling behind the ear → mastoiditis; refer urgently (an ear problem stays an ear problem even with fever).",
+  "ACUTE EAR INFECTION": "Ear pain or discharge for under 14 days → acute ear infection; oral amoxicillin.",
+  "CHRONIC EAR INFECTION": "Ear discharge for 14 days or more → chronic ear infection; keep the ear dry by wicking.",
+  "SEVERE ANAEMIA": "Severe palmar pallor → severe anaemia; refer urgently.",
+  "ANAEMIA": "Some palmar pallor → anaemia; give iron and follow up.",
+  "SEVERE ACUTE MALNUTRITION": "Oedema of both feet or severe wasting (MUAC/weight-for-height below the severe cut-off) → severe acute malnutrition; refer/treat per protocol.",
+  "MODERATE ACUTE MALNUTRITION": "Wasting or low MUAC above the severe cut-off → moderate acute malnutrition; feed and follow up.",
+  "DEPRESSION": "Persistent low mood or loss of interest for two weeks or more, without imminent self-harm → depression; psychoeducation and follow-up.",
+  "PSYCHOSIS": "Delusions, hallucinations, or disorganised behaviour → psychosis; start an antipsychotic and consult/refer.",
+  "EPILEPSY": "Recurrent unprovoked seizures with normal recovery in between → epilepsy; start an anti-seizure medicine.",
+  "SELF-HARM / SUICIDE": "Thoughts, a plan, or an act of self-harm → do not leave the person alone; remove access to means and consult urgently.",
+};
+
+export function deterministicReasoning(classification: string, entry: ProtocolEntry): string {
+  const norm = normalizeClassification(classification);
+  return (
+    CLASS_REASONING[norm] ??
+    `Classified as ${norm} under WHO ${entry.protocol}; severity is set by the IMCI colour band and the danger-sign gate, not by the model.`
+  );
 }
 
 /** The grounded urgent-referral line to surface when a case is escalated to EMERGENCY but its table entry
