@@ -40,11 +40,12 @@ export const config = {
   citationMapPath: process.env.TRIAGE0_CITATION_MAP ?? new URL("../data/rag/citation-map.json", import.meta.url).pathname,
   /**
    * ragSearch similarity floor; below this -> abstain (UNKNOWN card, no invented citation).
-   * Calibrated 2026-06-19 on GTE_LARGE_FP16: correct hits score >=0.74, off-domain negatives
-   * (taxes/car repair/cake) top out ~0.66 — GTE has a high similarity floor, so 0.30 gated
-   * nothing. 0.70 cleanly separates the two on this corpus.
+   * Re-calibrated 2026-06-21 (scripts/probe-retrieval.ts): in-domain mental-health cases bottom out
+   * at ~0.697 (psychosis in lay language), off-domain negatives (cake 0.673, car 0.654, taxes/flights
+   * lower) top out ~0.673 — a narrow but real gap. 0.685 sits in it: psychosis grounds, off-domain
+   * abstains. The model's UNKNOWN enum is the second-line backstop for anything that slips through.
    */
-  ragScoreThreshold: Number(process.env.RAG_THRESHOLD ?? 0.70),
+  ragScoreThreshold: Number(process.env.RAG_THRESHOLD ?? 0.685),
   /** Resident strategy. Phase-0 spike proved unload reclaims fully -> "resident" is safe. */
   residentMode: (process.env.RESIDENT_MODE as ResidentMode) ?? "resident",
 };

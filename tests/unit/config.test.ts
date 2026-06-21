@@ -52,7 +52,7 @@ test("default (no MODEL_ID) -> 1.7b local .gguf path, never a remote URL", async
   assert.equal(medpsySpec().ctxSize, 3072);
 });
 
-test("RAG_THRESHOLD parses as a number; default is 0.70", async () => {
+test("RAG_THRESHOLD parses as a number; default is 0.685", async () => {
   process.env.RAG_THRESHOLD = "0.55";
   const { config } = await freshConfig();
   assert.equal(config.ragScoreThreshold, 0.55);
@@ -60,7 +60,7 @@ test("RAG_THRESHOLD parses as a number; default is 0.70", async () => {
 
   delete process.env.RAG_THRESHOLD;
   const { config: dft } = await freshConfig();
-  assert.equal(dft.ragScoreThreshold, 0.7, "calibrated default floor");
+  assert.equal(dft.ragScoreThreshold, 0.685, "calibrated default floor (re-calibrated 2026-06-21)");
 });
 
 test("PORT parses as a number; default is 3010", async () => {

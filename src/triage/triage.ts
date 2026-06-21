@@ -14,12 +14,23 @@ import { config } from "../config.js";
 import { search, keywordSearch, type SearchHit } from "../rag/store.js";
 import {
   TriageExtractSchema,
-  TRIAGE_EXTRACT_JSON_SCHEMA,
+  buildExtractJsonSchema,
   type TriageCard,
   type ManagementPlan,
   type PlanCitation,
 } from "./schema.js";
-import { finalizeSeverity } from "./severity.js";
+import { finalizeSeverity, finalizeSeverityV2, hasEmergencySign } from "./severity.js";
+import {
+  lookupProtocol,
+  normalizeClassification,
+  docFor,
+  emergencyReferral,
+  allowedClassesFor,
+  reconcileMalaria,
+  reconcileDiarrhoea,
+  CLASSIFICATION_ENUM,
+  type ProtocolEntry,
+} from "./protocol-table.js";
 import type { ChatMessage } from "../qvac/sdk.js";
 
 const MAX_EXTRACT_ATTEMPTS = 3;
@@ -28,10 +39,15 @@ const MAX_EXTRACT_ATTEMPTS = 3;
 const DEFAULT_REASON_PREDICT = Number(process.env.REASON_PREDICT) || 1024;
 
 const GROUNDING_RULE =
-  "CRITICAL GROUNDING RULE: the protocol excerpt explicitly lists which clinical signs map to which " +
-  "classification. Use ONLY that mapping — never reclassify a sign from memory or from older guidelines. " +
-  "Match the case's signs to the excerpt line listing those exact signs, then take that line's " +
-  "classification AND its action.";
+  "CLASSIFICATION RULE: First identify the child's MAIN clinical problem from the case — focus on the " +
+  "ABNORMAL signs (cough or difficult breathing, fever, diarrhoea, an ear problem, pallor/anaemia, " +
+  "malnutrition, or a mental-health complaint), and IGNORE reassuring details like 'eating normally' or " +
+  "'no danger signs' when choosing WHICH problem it is. Then pick the SINGLE WHO classification whose " +
+  "defining signs match the case. The protocol excerpts are your reference for the correct classification " +
+  "name and its treatment — use them to confirm the match and to take that line's action — but do NOT " +
+  "force the case into an unrelated excerpt (e.g. a fever case is never a dehydration classification). " +
+  "If none of the excerpts contain the matching classification, use the standard WHO IMCI/mhGAP " +
+  "classification for the case's signs. Never reclassify from older (pre-2014) guidelines.";
 
 // E-1 (PLAN Appendix F): everything the user/store supplies is fenced as UNTRUSTED data. This clause
 // tells the model those blocks are never instructions — an adversarial case or poisoned protocol chunk
@@ -56,18 +72,56 @@ const SYS_REASON =
   "for cough, stridor in a calm child. A SEVERE / refer-urgently classification is justified ONLY if at " +
   "least one such sign is present in the case. Chest indrawing or fast breathing ALONE — with no danger " +
   "sign and no stridor — is the home-treatment classification, NOT severe. " +
+  " FEVER RULE (WHO IMCI no-test rule): if the child has fever AND lives in or recently travelled to a " +
+  "malaria-risk area, and no malaria test RESULT is stated in the case, classify as MALARIA — NOT " +
+  "'FEVER: NO MALARIA'. Only classify 'FEVER: NO MALARIA' when a malaria test is explicitly NEGATIVE or " +
+  "there is genuinely no malaria risk. " +
   "Then: (1) list the signs in the case, (2) find the excerpt line listing those signs, " +
   "(3) state that line's classification and action, (4) note any danger signs. " +
   "End with exactly one line: CONCLUSION: <classification> — <exact action from that line>." +
   INJECTION_CLAUSE;
 
+// The EXTRACT pass is the actual CLASSIFIER. The enum grammar only constrains the OUTPUT to a valid
+// value; without an explicit menu + decision rules the small model generates greedily and lands on a
+// semantically-wrong class (its default attractor was the DEHYDRATION entries). So this prompt gives it
+// the full list AND the WHO IMCI/mhGAP decision tree, so it picks the RIGHT valid value from the case's
+// MAIN sign — not from a vague reason conclusion. These are the protocol's own rules, not heuristics.
 const SYS_EXTRACT =
-  "Extract structured fields from the CLINICAL ASSESSMENT. " +
-  '"classification" = the WHO classification named in the assessment\'s CONCLUSION. ' +
-  '"action" = the treatment / next step quoted from the CONCLUSION verbatim — never add "refer" or ' +
-  '"urgent" unless the CONCLUSION itself says to refer. ' +
-  '"reasoning" = a brief justification. "red_flags" = danger signs present in the case (may be empty). ' +
-  "Do not re-diagnose. Emit ONLY the JSON object." +
+  "You are an IMCI/mhGAP triage classifier. Read the PATIENT CASE and the CLINICAL ASSESSMENT and choose " +
+  "the SINGLE best classification for the case's MAIN abnormal sign, from EXACTLY this list:\n" +
+  CLASSIFICATION_ENUM.join(", ") +
+  ".\nDECISION RULES (apply in order, classify by the MAIN problem):\n" +
+  "1. DIARRHOEA/DEHYDRATION classes (SEVERE DEHYDRATION, SOME DEHYDRATION, NO DEHYDRATION, DYSENTERY) are " +
+  "ONLY for a case whose main problem is diarrhoea/loose stools. NEVER pick a DEHYDRATION class for a " +
+  "cough, fever, ear, anaemia, or mental-health case. Within diarrhoea, choose by severity of signs: " +
+  "blood in the stool → DYSENTERY (regardless of other symptoms); SEVERE DEHYDRATION ONLY if the child is " +
+  "lethargic/unconscious OR eyes are VERY sunken OR skin pinch goes back VERY slowly; SOME DEHYDRATION if " +
+  "restless/irritable, sunken eyes, drinks eagerly, or skin pinch goes back slowly; otherwise (drinking " +
+  "normally, eyes not sunken, normal skin pinch) → NO DEHYDRATION. Do NOT pick SEVERE DEHYDRATION without " +
+  "one of its specific severe signs.\n" +
+  "2. FEVER (apply carefully): if the child has fever AND lives in/visited a malaria area OR has high " +
+  "malaria risk OR a POSITIVE malaria test, classify as MALARIA — EVEN IF no malaria test was done and " +
+  "EVEN IF there are no danger signs (in a malaria area, untested fever is treated AS malaria). Choose " +
+  "FEVER: NO MALARIA ONLY when the malaria test is explicitly NEGATIVE, or the case explicitly says there " +
+  "is no malaria risk / not a malaria area. 'No test done' is NOT the same as a negative test. Fever with " +
+  "a stiff neck or a general danger sign → VERY SEVERE FEBRILE DISEASE.\n" +
+  "3. COUGH/BREATHING: general danger sign or stridor → SEVERE PNEUMONIA OR VERY SEVERE DISEASE; chest " +
+  "indrawing OR fast breathing → PNEUMONIA; cough/cold with NO fast breathing and NO chest indrawing → " +
+  "COUGH OR COLD.\n" +
+  "4. EAR: an ear problem (ear pain, ear discharge, or a swelling behind the ear) is ALWAYS an EAR " +
+  "classification, even if fever is also present — never classify an ear case as pneumonia or fever. " +
+  "Tender swelling/lump behind the ear → MASTOIDITIS; ear pain or discharge < 14 days → ACUTE EAR " +
+  "INFECTION; discharge ≥ 14 days → CHRONIC EAR INFECTION.\n" +
+  "5. PALLOR: SEVERE ANAEMIA ONLY for SEVERE palmar pallor. Some, mild, or unspecified palmar pallor → " +
+  "ANAEMIA (not SEVERE ANAEMIA).\n" +
+  "6. MENTAL HEALTH: pick SELF-HARM / SUICIDE ONLY if the case mentions suicide, self-harm, or a " +
+  "self-inflicted injury. Hallucinations, delusions, or disorganised speech with NO self-harm mention → " +
+  "PSYCHOSIS. Low mood/loss of interest → DEPRESSION. Recurrent unprovoked convulsions/seizures → " +
+  "EPILEPSY.\n" +
+  "7. Output UNKNOWN ONLY if the case has NO clinical signs matching any classification (e.g. a non-medical " +
+  "question). A real clinical case must get a real classification, never UNKNOWN.\n" +
+  '"action" = the treatment/next step for that classification. "reasoning" = one brief sentence. ' +
+  '"red_flags" = danger signs present in the case (may be empty). Emit ONLY the JSON object.' +
   INJECTION_CLAUSE;
 
 export interface TriageContext {
@@ -155,9 +209,11 @@ export async function triageFromHits(
       { role: "user", content: `${userBody}\n\nGive your assessment.` },
     ],
     phase: "triage",
-    // Low temp reduces the model's run-to-run variance on the severe-vs-home-treatment call; the
-    // danger-sign invariant (finalizeSeverity) is the deterministic backstop on top of it.
-    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0.3 },
+    // Greedy decoding (temp 0): the classification must be STABLE — a trivial rewording of the same case
+    // must not flip the class. temp 0.3 made "fever, malaria area" land on MALARIA or FEVER:NO MALARIA
+    // run-to-run; greedy takes the single most-likely reading every time. The danger-sign invariant +
+    // the deterministic table are the backstops on top.
+    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0 },
     onDelta: opts?.onReasonDelta,
   });
   // If the reason pass was token-capped mid-<think> (the E-5 demo path caps predict), stripThink
@@ -165,6 +221,10 @@ export async function triageFromHits(
   // reasoning to work from, rather than feeding it an empty assessment and failing the retry loop.
   const assessment =
     stripThink(reasonRun.text) || reasonRun.text.replace(/<\/?think>/g, "").trim() || reasonRun.text.trim();
+
+  // MAIN-SYMPTOM ROUTING: restrict the extract enum to the detected symptom's classes so the model makes
+  // a within-symptom choice, not a 25-way one. The grammar cannot then emit a cross-symptom class.
+  const extractSchema = buildExtractJsonSchema(allowedClassesFor(caseText));
 
   // EXTRACT pass — GBNF-constrained json_schema → guaranteed shape; safeParse + retry.
   let lastErr = "";
@@ -183,27 +243,58 @@ export async function triageFromHits(
       modelId: ctx.medpsyId,
       history,
       phase: "triage",
-      responseFormat: { type: "json_schema", json_schema: { name: "triage_extract", schema: TRIAGE_EXTRACT_JSON_SCHEMA } },
+      responseFormat: { type: "json_schema", json_schema: { name: "triage_extract", schema: extractSchema } },
     });
     const parsed = TriageExtractSchema.safeParse(parseExtract(extractRun.text));
     if (parsed.success) {
       const ex = parsed.data;
-      // Severity from deterministic code (auditable) — never the model. Includes the danger-sign
-      // invariant: EMERGENCY only if the case actually presents an emergency sign.
-      const severity = finalizeSeverity(ex.classification, ex.action, caseText, ex.red_flags);
-      // Citation injected from the GROUNDED chunk — never model-authored.
-      const card: TriageCard = {
-        severity,
-        action: ex.action,
-        protocol_citation: {
-          doc: grounded.citation.title,
-          page: grounded.citation.page || grounded.source_ref.match(/p\.(\d+)/)?.[1] || "—",
-          section: (grounded.citation.section || grounded.text.slice(0, 160)).replace(/\s+/g, " ").trim(),
-        },
-        reasoning: ex.reasoning,
-        red_flags: ex.red_flags,
-      };
-      return { card, citationChunk: grounded, attempts: attempt, retrieval, classification: ex.classification };
+      // REDESIGN (Tier B): the model has done its one job — emit ONE enum classification. Routing now
+      // belongs to the frozen WHO table, not to the model's prose or to RAG.
+      // (a) UNKNOWN → the case grounded a chunk but fits no listed class; abstain rather than force a
+      //     wrong class onto a clinical card.
+      if (normalizeClassification(ex.classification) === "UNKNOWN") {
+        return { card: abstainCard(), citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN" };
+      }
+      // Deterministic WHO corrections (stable where the model is boundary-flaky): no-test malaria, then
+      // blood→DYSENTERY + SEVERE-DEHYDRATION over-call guard.
+      let cls = reconcileMalaria(ex.classification, caseText);
+      cls = reconcileDiarrhoea(cls, caseText, hasEmergencySign(caseText, ex.red_flags));
+      let entry = lookupProtocol(cls);
+      const severity = entry
+        ? finalizeSeverityV2(cls, ex.action, caseText, ex.red_flags)
+        : finalizeSeverity(cls, ex.action, caseText, ex.red_flags);
+      // RECONCILE the classification with the danger-sign gate (the 2014 IMCI pneumonia merge): when the
+      // model over-names a pure chest-indrawing case "SEVERE PNEUMONIA" but the gate downgraded severity
+      // below EMERGENCY, route to the home-treatment sibling so the plan + action agree with the band
+      // (oral amoxicillin, not refer). Driven by the table's `downgradeTo`, not a hardcoded condition.
+      if (entry?.downgradeTo && severity !== "EMERGENCY") {
+        cls = entry.downgradeTo;
+        entry = lookupProtocol(cls);
+      }
+      // (b) ENCODED → severity, action, and citation come from the table (deterministic, verbatim,
+      //     page-correct). This is what fixes the off-seed failure: no positional citation slice, no
+      //     model-authored severity. (c) UNENCODED → legacy behaviour (heuristic severity, model action,
+      //     grounded-chunk citation) for the not-yet-encoded classes (malnutrition, etc.).
+      const card: TriageCard = entry
+        ? {
+            severity,
+            action: entry.action.text,
+            protocol_citation: { doc: docFor(entry.protocol), page: entry.citation.page, section: entry.citation.text },
+            reasoning: ex.reasoning,
+            red_flags: ex.red_flags,
+          }
+        : {
+            severity,
+            action: ex.action,
+            protocol_citation: {
+              doc: grounded.citation.title,
+              page: grounded.citation.page || grounded.source_ref.match(/p\.(\d+)/)?.[1] || "—",
+              section: (grounded.citation.section || grounded.text.slice(0, 160)).replace(/\s+/g, " ").trim(),
+            },
+            reasoning: ex.reasoning,
+            red_flags: ex.red_flags,
+          };
+      return { card, citationChunk: grounded, attempts: attempt, retrieval, classification: cls };
     }
     lastErr = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
   }
@@ -251,9 +342,12 @@ export async function retrieveGrounding(
   // (from any caller, not just the length-capped /triage route) can never overflow the embedder. The
   // reasoning pass still sees the full case; retrieval only needs the leading signs to ground.
   const queryText = caseText.slice(0, 1500);
+  // k=8 (was 4): the WHO ASSESS/record-form pages (blank "Name:Age:Weight" templates) are semantic
+  // attractors that crowd the top ranks, pushing the real treatment rows just below the top-4. A deeper
+  // retrieval keeps the correct classification page in view; the model then picks from the case's signs.
   const hits = degraded
-    ? keywordSearch(queryText, 4)
-    : await search({ embedModelId: ctx.embedId!, queryText, k: 4, phase: "triage" });
+    ? keywordSearch(queryText, 8)
+    : await search({ embedModelId: ctx.embedId!, queryText, k: 8, phase: "triage" });
   // Semantic scores compare to the calibrated cosine threshold. Keyword scores are term-coverage
   // (hits/terms, store.ts D5) on a different scale — but `> 0` disables abstain in degraded mode (any
   // chunk sharing ONE incidental 4+char token false-accepts an off-domain case). Require ≥2 covered
@@ -261,7 +355,7 @@ export async function retrieveGrounding(
   const usableTerms = queryText.toLowerCase().split(/\W+/).filter((t) => t.length > 3).length;
   const passes = (h: SearchHit) =>
     degraded ? (usableTerms >= 2 ? h.score * usableTerms >= 2 : h.score > 0) : h.score >= config.ragScoreThreshold;
-  const groundedHits = hits.filter(passes).slice(0, 3);
+  const groundedHits = hits.filter(passes).slice(0, 5);
   return { groundedHits, retrieval: degraded ? "keyword" : "semantic" };
 }
 
@@ -451,6 +545,36 @@ function drugWindow(chunk: SearchHit | undefined, re: RegExp): string {
 }
 
 /**
+ * Build the management plan from the frozen WHO table (the REDESIGN path). Every line is already verbatim
+ * + page-correct (asserted by the dose-safety gate), so this is a pure projection — no retrieval, no
+ * fuzzy matching, no chance of surfacing the wrong drug or a positional citation fragment. The EMERGENCY
+ * invariant guarantees a referral on any escalated case even if the class table itself carries none.
+ */
+function buildPlanFromTable(entry: ProtocolEntry, severity: string): ManagementPlan {
+  const doc = docFor(entry.protocol);
+  const cite = (page: number): PlanCitation => ({ doc, page });
+  const plan: ManagementPlan = {
+    medicines: entry.medicines.map((m) => ({
+      name: m.name,
+      dose: m.dose,
+      frequency: m.frequency,
+      duration: undefined,
+      citation: cite(m.page),
+    })),
+    supportive: entry.supportive.map((l) => ({ item: l.text, citation: cite(l.page) })),
+    home_care: entry.home_care.map((l) => ({ advice: l.text, citation: cite(l.page) })),
+    return_now: entry.return_now.map((l) => ({ sign: l.text, citation: cite(l.page) })),
+    follow_up: entry.follow_up ? { when: entry.follow_up.text, citation: cite(entry.follow_up.page) } : null,
+    referral: entry.referral ? { criterion: entry.referral.text, citation: cite(entry.referral.page) } : null,
+  };
+  if (severity === "EMERGENCY" && !plan.referral) {
+    const ref = emergencyReferral(entry.protocol);
+    plan.referral = { criterion: ref.text, citation: cite(ref.page) };
+  }
+  return plan;
+}
+
+/**
  * Build the grounded ManagementPlan deterministically from retrieved chunks. Never throws — the plan is
  * a progressive enhancement on the already-correct card, so any failure yields an empty (valid) plan.
  */
@@ -462,6 +586,12 @@ export async function assemblePlan(
 ): Promise<ManagementPlan> {
   const plan: ManagementPlan = { medicines: [], supportive: [], home_care: [], return_now: [], follow_up: null, referral: null };
   if (!classification) return plan;
+
+  // REDESIGN (Tier B): an encoded class is served by the frozen table — every line verbatim + page-correct
+  // (dose-safety gated in tests/unit/protocol-table.test.ts). RAG is demoted to grounding/citation; it no
+  // longer picks the plan. This is fully deterministic and needs no retrieval, so it cannot mis-aim.
+  const entry = lookupProtocol(classification);
+  if (entry) return buildPlanFromTable(entry, severity);
 
   try {
     // Per-component retrieval, kept grouped (precision: medicines never read from the supportive/return

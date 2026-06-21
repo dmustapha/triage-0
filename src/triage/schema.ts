@@ -6,6 +6,7 @@
 // code (severity.ts) and `protocol_citation` is injected from the retrieved chunk — neither is model-
 // authored. This keeps the two things the model is bad at (severity bucketing, citing) out of its hands.
 import { z } from "zod";
+import { CLASSIFICATION_ENUM } from "./protocol-table.js";
 
 export const SEVERITIES = ["EMERGENCY", "URGENT", "ROUTINE", "SELF_CARE", "UNKNOWN"] as const;
 export type Severity = (typeof SEVERITIES)[number];
@@ -82,7 +83,11 @@ export type TriageExtract = z.infer<typeof TriageExtractSchema>;
 export const TRIAGE_EXTRACT_JSON_SCHEMA = {
   type: "object",
   properties: {
-    classification: { type: "string", description: "The WHO classification named in the assessment, e.g. PNEUMONIA, SEVERE PNEUMONIA OR VERY SEVERE DISEASE." },
+    // ENUM-CONSTRAINED (the highest-leverage accuracy lever). llama.cpp compiles this enum into the GBNF
+    // grammar, so the model can ONLY emit a valid WHO classification — it cannot invent a vague class
+    // ("fever, follow-up in 2 days") that would silently mis-aim routing. This string is THE table key
+    // (protocol-table.ts). UNKNOWN is the abstain escape hatch for a case that fits no listed class.
+    classification: { type: "string", enum: CLASSIFICATION_ENUM, description: "The single WHO classification that best matches the case, chosen from the allowed list. Use UNKNOWN if no listed classification fits." },
     action: { type: "string", description: "The exact treatment / next step on the matched classification's protocol line." },
     reasoning: { type: "string", description: "Brief justification citing the matched signs." },
     red_flags: { type: "array", items: { type: "string" }, description: "Danger signs present in the case, if any." },
@@ -90,6 +95,26 @@ export const TRIAGE_EXTRACT_JSON_SCHEMA = {
   required: ["classification", "action", "reasoning", "red_flags"],
   additionalProperties: false,
 } as const;
+
+/**
+ * Per-request extract schema: the same shape, but with `classification.enum` restricted to the classes
+ * allowed for THIS case's detected main symptom(s) (protocol-table.ts allowedClassesFor). This is the
+ * hard, grammar-level constraint that stops a 1.7B model from drifting across symptoms (an ear case to a
+ * dehydration class). Falls back to the full enum when no symptom is detected.
+ */
+export function buildExtractJsonSchema(allowedClasses: string[]) {
+  return {
+    type: "object",
+    properties: {
+      classification: { type: "string", enum: allowedClasses, description: "The single WHO classification that best matches the case, from the allowed list. Use UNKNOWN if none fit." },
+      action: TRIAGE_EXTRACT_JSON_SCHEMA.properties.action,
+      reasoning: TRIAGE_EXTRACT_JSON_SCHEMA.properties.reasoning,
+      red_flags: TRIAGE_EXTRACT_JSON_SCHEMA.properties.red_flags,
+    },
+    required: ["classification", "action", "reasoning", "red_flags"],
+    additionalProperties: false,
+  };
+}
 
 /**
  * What the model proposes in the plan-assemble pass (Task #22). NO citations (injected in code from the
