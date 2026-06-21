@@ -204,7 +204,7 @@ app.post("/triage", async (req: Request, res: Response) => {
       },
     });
 
-    send("card", { card: result.card, citationChunk: result.citationChunk, attempts: result.attempts, perf: lastCompletionPerf() });
+    send("card", { card: result.card, classification: result.classification, citationChunk: result.citationChunk, attempts: result.attempts, perf: lastCompletionPerf() });
 
     // Task #22: the grounded WHO management plan lands as a SEPARATE event AFTER the card, so the
     // severity + action + citation appear at their existing timing and the multi-component plan

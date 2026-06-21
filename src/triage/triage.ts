@@ -114,6 +114,9 @@ const SYS_EXTRACT =
   "INFECTION; discharge ≥ 14 days → CHRONIC EAR INFECTION.\n" +
   "5. PALLOR: SEVERE ANAEMIA ONLY for SEVERE palmar pallor. Some, mild, or unspecified palmar pallor → " +
   "ANAEMIA (not SEVERE ANAEMIA).\n" +
+  "5b. MALNUTRITION (very thin/wasted child, low arm-circumference/MUAC, or swelling/oedema of both " +
+  "feet): MUAC under 115 mm, severe wasting, OR oedema of both feet → SEVERE ACUTE MALNUTRITION; MUAC " +
+  "115–125 mm or moderate wasting → MODERATE ACUTE MALNUTRITION.\n" +
   "6. MENTAL HEALTH: pick SELF-HARM / SUICIDE ONLY if the case mentions suicide, self-harm, or a " +
   "self-inflicted injury. Hallucinations, delusions, or disorganised speech with NO self-harm mention → " +
   "PSYCHOSIS. Low mood/loss of interest → DEPRESSION. Recurrent unprovoked convulsions/seizures → " +
@@ -173,12 +176,12 @@ function excerptBlock(hits: SearchHit[]): string {
   return hits.map((h, i) => `PROTOCOL EXCERPT ${i + 1} (${h.source_ref}):\n${fence("PROTOCOL", h.text)}`).join("\n\n");
 }
 
-function abstainCard(): TriageCard {
+function abstainCard(reason?: string): TriageCard {
   return {
     severity: "UNKNOWN",
     action: "No matching protocol found — escalate to a clinician",
     protocol_citation: { doc: "No protocol matched", page: "—", section: "—" },
-    reasoning: "No WHO protocol passage matched this case above the retrieval similarity threshold, so Triage-0 abstains rather than guess.",
+    reasoning: reason ?? "No WHO protocol passage matched this case above the retrieval similarity threshold, so Triage-0 abstains rather than guess.",
     red_flags: [],
   };
 }
@@ -253,7 +256,10 @@ export async function triageFromHits(
       // (a) UNKNOWN → the case grounded a chunk but fits no listed class; abstain rather than force a
       //     wrong class onto a clinical card.
       if (normalizeClassification(ex.classification) === "UNKNOWN") {
-        return { card: abstainCard(), citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN" };
+        return {
+          card: abstainCard("This case does not match an encoded WHO IMCI or mhGAP classification, so Triage-0 escalates to a clinician rather than guess."),
+          citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN",
+        };
       }
       // Deterministic WHO corrections (stable where the model is boundary-flaky): no-test malaria, then
       // blood→DYSENTERY + SEVERE-DEHYDRATION over-call guard.
@@ -556,15 +562,19 @@ function buildPlanFromTable(entry: ProtocolEntry, severity: string): ManagementP
   const plan: ManagementPlan = {
     medicines: entry.medicines.map((m) => ({
       name: m.name,
+      strength: m.strength,
       dose: m.dose,
       frequency: m.frequency,
       duration: undefined,
+      bands: m.bands,
       citation: cite(m.page),
     })),
     supportive: entry.supportive.map((l) => ({ item: l.text, citation: cite(l.page) })),
     home_care: entry.home_care.map((l) => ({ advice: l.text, citation: cite(l.page) })),
     return_now: entry.return_now.map((l) => ({ sign: l.text, citation: cite(l.page) })),
-    follow_up: entry.follow_up ? { when: entry.follow_up.text, citation: cite(entry.follow_up.page) } : null,
+    follow_up: entry.follow_up
+      ? { when: entry.follow_up.text, detail: entry.follow_up_detail?.text, citation: cite(entry.follow_up.page) }
+      : null,
     referral: entry.referral ? { criterion: entry.referral.text, citation: cite(entry.referral.page) } : null,
   };
   if (severity === "EMERGENCY" && !plan.referral) {

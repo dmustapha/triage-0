@@ -12,12 +12,16 @@ import { config } from "../../src/config.js";
 import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, type GroundedLine } from "../../src/triage/protocol-table.js";
 
 const mapPath = config.citationMapPath;
+const dosePath = new URL("../../data/rag/dose-tables.txt", import.meta.url).pathname;
 const skip = existsSync(mapPath) ? false : "citation-map.json not present — run `npm run ingest` first";
 
 type MapEntry = { protocol: string; title: string; page: number; section: string; content: string };
 const CMAP: Record<string, MapEntry> = skip ? {} : JSON.parse(readFileSync(mapPath, "utf8"));
+// The clean PDF-text-layer source for the per-band dosing the RAG ingest mangled (provenance in-file).
+const DOSE_SRC = existsSync(dosePath) ? readFileSync(dosePath, "utf8") : "";
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+const DOSE_N = norm(DOSE_SRC);
 
 /** Is `text` a verbatim (ws-normalised, case-insensitive) substring of SOME chunk at `page`? */
 function groundedAtPage(text: string, page: number): boolean {
@@ -26,11 +30,22 @@ function groundedAtPage(text: string, page: number): boolean {
   return Object.values(CMAP).some((c) => c.page === page && norm(c.content).includes(needle));
 }
 
+/** Verbatim anywhere in the clean dose-tables source. */
+function inDoseSrc(text: string): boolean {
+  const n = norm(text);
+  return n.length > 0 && DOSE_N.includes(n);
+}
+
+/** A clinical line is grounded if it is verbatim in the RAG corpus at its page OR in the clean dose source. */
+function grounded(text: string, page: number): boolean {
+  return groundedAtPage(text, page) || inDoseSrc(text);
+}
+
 function pageExists(page: number): boolean {
   return Object.values(CMAP).some((c) => c.page === page);
 }
 
-test("dose-safety gate: every protocol-table line is verbatim-grounded at its cited page", { skip }, () => {
+test("dose-safety gate: every protocol-table line is verbatim-grounded (RAG corpus or clean dose source)", { skip }, () => {
   for (const [cls, e] of Object.entries(PROTOCOL_TABLE)) {
     const proseLines: GroundedLine[] = [
       e.action,
@@ -39,27 +54,62 @@ test("dose-safety gate: every protocol-table line is verbatim-grounded at its ci
       ...e.home_care,
       ...e.return_now,
       ...(e.follow_up ? [e.follow_up] : []),
+      ...(e.follow_up_detail ? [e.follow_up_detail] : []),
       ...(e.referral ? [e.referral] : []),
     ];
     for (const ln of proseLines) {
-      assert.ok(
-        groundedAtPage(ln.text, ln.page),
-        `${cls}: "${ln.text}" is NOT a verbatim substring of any chunk on page ${ln.page}`,
-      );
+      assert.ok(grounded(ln.text, ln.page), `${cls}: "${ln.text}" is NOT verbatim in the corpus (p${ln.page}) or the dose source`);
     }
-    // Medicines: `dose` (when present) is ALWAYS the non-numeric banded marker (never a fabricated
-    // amount); `frequency` (when present) is verbatim at the dosing page; the cited page must exist.
     for (const med of e.medicines) {
       assert.ok(pageExists(med.page), `${cls}: medicine ${med.name} cites a page (${med.page}) that exists in the corpus`);
       if (med.dose !== undefined) {
-        assert.equal(med.dose, "By weight band", `${cls}: medicine ${med.name} dose must be banded guidance, not a number (got "${med.dose}")`);
+        assert.ok(grounded(med.dose, med.page), `${cls}: ${med.name} dose "${med.dose}" is not verbatim-grounded`);
+      }
+      if (med.strength !== undefined) {
+        assert.ok(inDoseSrc(med.strength), `${cls}: ${med.name} strength "${med.strength}" not verbatim in the dose source`);
       }
       if (med.frequency !== undefined) {
-        assert.ok(
-          groundedAtPage(med.frequency, med.page),
-          `${cls}: medicine ${med.name} frequency "${med.frequency}" is NOT verbatim on page ${med.page}`,
-        );
+        assert.ok(grounded(med.frequency, med.page), `${cls}: ${med.name} frequency "${med.frequency}" not verbatim`);
       }
+      // THE DOSE-SAFETY CORE: every per-band amount must be verbatim in the clean WHO dose source —
+      // band label AND amount, on the SAME source line (so the amount is tied to its band, not floating).
+      for (const b of med.bands ?? []) {
+        const onSameLine = DOSE_SRC.split("\n").some((line) => {
+          const ln = norm(line);
+          return ln.includes(norm(b.band)) && ln.includes(norm(b.dose));
+        });
+        assert.ok(onSameLine, `${cls}: ${med.name} band "${b.band}" → "${b.dose}" is NOT a verbatim WHO dose row`);
+      }
+    }
+  }
+});
+
+test("management completeness: no encoded class ships a thin plan", () => {
+  for (const [cls, e] of Object.entries(PROTOCOL_TABLE)) {
+    const mgmt = e.medicines.length + e.supportive.length + e.home_care.length;
+    if (e.severity === "EMERGENCY") {
+      // A refer case MUST have a referral AND some pre-referral action (a drug, supportive care, or
+      // return-now safety instructions) — never just a bare "refer".
+      assert.ok(e.referral, `${cls} (EMERGENCY) must carry a referral`);
+      assert.ok(
+        mgmt + e.return_now.length >= 1,
+        `${cls} (EMERGENCY) must carry pre-referral treatment, supportive care, or safety instructions`,
+      );
+    } else {
+      // A treat case MUST have actionable management, a follow-up, and an escalation path — return-now
+      // danger signs (IMCI) or a specialist referral (mhGAP).
+      assert.ok(mgmt >= 1, `${cls} must carry a medicine, supportive care, or home care (got none)`);
+      assert.ok(e.follow_up, `${cls} must carry a follow-up`);
+      assert.ok(
+        e.return_now.length >= 1 || e.referral,
+        `${cls} must give an escalation path (return-now signs or a referral)`,
+      );
+    }
+    // A drug-bearing class must specify the dose (real per-band amounts or a verbatim dose line), never
+    // leave a medicine amount-less.
+    for (const m of e.medicines) {
+      const hasAmount = (m.bands && m.bands.length > 0) || !!m.dose || !!m.frequency;
+      assert.ok(hasAmount, `${cls}: medicine ${m.name} must carry a dose (bands, dose, or frequency)`);
     }
   }
 });

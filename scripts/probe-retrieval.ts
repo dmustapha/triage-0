@@ -1,40 +1,34 @@
-// Fast retrieval diagnostic (embeddings only, no MedPsy). For each case prints the top-K chunks with
-// page + score, so we can see (a) whether the RIGHT classification page is retrievable at all, and (b)
-// the score distribution — to set the abstain threshold so in-domain clears it and off-domain doesn't.
+// Fast retrieval diagnostic (embeddings only). For each case prints top-K chunks (page + score) so we
+// can see whether the right page is retrievable and where it sits vs the abstain threshold.
 // Run: lsof -ti:3010 | xargs kill -9; npx tsx scripts/probe-retrieval.ts
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 process.env.TRIAGE0_PERF_DIR = mkdtempSync(join(tmpdir(), "triage0-probe-"));
 
-const { registry } = await import("../src/config.js");
+const { registry, config } = await import("../src/config.js");
 const { loadModelTimed, unloadModelTimed } = await import("../src/qvac/engine.js");
 const { close } = await import("../src/qvac/sdk.js");
 const { search } = await import("../src/rag/store.js");
 
 const CASES: [string, string][] = [
-  ["malaria (high-risk no test)", "Three year old, fever for two days, lives in a malaria area, eating normally, no stiff neck, no danger signs."],
-  ["pneumonia (fast breathing only)", "Eight month old, cough, breathing 56 per minute, no chest indrawing, alert and feeding."],
-  ["severe pneumonia (danger signs)", "One year old with cough, now lethargic and unable to drink, breathing 60 per minute with chest indrawing, and stridor while calm."],
-  ["cough/cold", "Three year old, cough and runny nose for two days, no fast breathing, no chest indrawing, playing and eating normally."],
-  ["fever no malaria", "Two year old, fever for one day, malaria test negative, has a cough and sore throat, alert and drinking."],
-  ["no dehydration", "Three year old, mild diarrhoea for one day, drinking normally, eyes not sunken, alert, skin pinch normal."],
-  ["acute ear infection", "Three year old, ear pain for two days, pus draining from the ear for less than fourteen days, no swelling behind the ear."],
-  ["psychosis", "Young adult hearing voices and believing neighbours are spying on him, with disorganised speech for one month."],
-  ["self-harm", "Adult expressing thoughts of suicide with a plan to harm themselves, found with a self-inflicted wound."],
+  ["malnutrition (MUAC 110)", "18 month old, very thin, arm-circumference 110 mm, no swelling of the feet, alert, eating a little."],
+  ["malnutrition (oedema)", "Child very thin and wasted with swelling of both feet, not eating."],
+  ["persistent diarrhoea", "Diarrhoea for 3 weeks, child thin, no blood, still drinking."],
+  ["newborn jaundice", "Newborn 5 days old, yellow skin and eyes, feeding poorly."],
+  ["substance withdrawal", "Adult confused and seeing things after drinking heavily for years then stopping two days ago."],
+  ["dementia", "Elderly person increasingly forgetful, getting lost, repeating questions."],
+  ["adult OB (off-scope)", "My 30 year old wife has severe abdominal pain and missed her period."],
   ["off-domain cake", "What is the best recipe for a chocolate cake?"],
-  ["off-domain car", "My car engine is making a knocking noise, how do I fix it?"],
 ];
 
 const { modelId: embedId } = await loadModelTimed(registry.embeddings, "test");
-
+console.error(`threshold = ${config.ragScoreThreshold}`);
 for (const [label, q] of CASES) {
-  const hits = await search({ embedModelId: embedId, queryText: q.slice(0, 1500), k: 8, phase: "triage" });
-  console.log(`\n### ${label}`);
-  for (const h of hits) {
-    console.log(`  ${h.score.toFixed(3)}  ${h.protocol}|p${h.citation.page}  "${h.text.replace(/\s+/g, " ").slice(0, 70)}"`);
-  }
+  const hits = await search({ embedModelId: embedId, queryText: q.slice(0, 1500), k: 6, phase: "triage" });
+  const top = hits[0]?.score ?? 0;
+  console.error(`\n### ${label}  (top ${top.toFixed(3)} ${top >= config.ragScoreThreshold ? "GROUND" : "ABSTAIN"})`);
+  for (const h of hits.slice(0, 5)) console.error(`  ${h.score.toFixed(3)}  ${h.protocol}|p${h.citation.page}  "${h.text.replace(/\s+/g, " ").slice(0, 64)}"`);
 }
-
 await unloadModelTimed(embedId, "embeddings", "test");
 close();

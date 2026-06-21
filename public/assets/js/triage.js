@@ -112,19 +112,26 @@
       "</div>";
   }
 
-  function renderCard(card) {
+  function renderCard(card, classification) {
     $("reasoningWrap").classList.add("hidden");
     $("card").classList.remove("hidden");
     var sev = card.severity;
     var ico = (sev === "ROUTINE" || sev === "SELF_CARE") ? ICON.check : ICON.alert;
     var flags = (card.red_flags || []).map(function (f) { return "<li>" + esc(f) + "</li>"; }).join("");
+    // Clinical order: Severity (how urgent) -> Classification (what it is) -> Why -> Action -> Management.
+    // The WHO classification is shown as "Classification" (not "Diagnosis"): IMCI/mhGAP produce a
+    // protocol classification, and the tool is decision-SUPPORT, not a diagnoser (see the disclaimer).
+    var dx = (classification && sev !== "UNKNOWN")
+      ? '<div class="dx"><span class="dx-label">Classification</span><span class="dx-name">' + esc(classification) + "</span></div>"
+      : "";
     $("card").innerHTML =
       '<div class="verdict">' +
         '<div class="sev ' + sev + '">' + ico + sev + "</div>" +
         '<div class="sev-note">' + (SEV_NOTE[sev] || "") + "</div>" +
       "</div>" +
-      '<div class="action">' + esc(card.action) + "</div>" +
+      dx +
       (card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
+      '<div class="action">' + esc(card.action) + "</div>" +
       (flags ? '<ul class="flags">' + flags + "</ul>" : "") +
       (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">Preparing the full management plan</div>' : "") +
       '<div class="hear">' +
@@ -161,25 +168,39 @@
     if (!arr || !arr.length) return "";
     return pgroup(title, arr.map(function (x) { return prow(x[field], x.citation); }).join(""));
   }
+  function doseTable(bands) {
+    if (!bands || !bands.length) return "";
+    return '<table class="dose"><thead><tr><th>Age / weight</th><th>Dose</th></tr></thead><tbody>' +
+      bands.map(function (b) {
+        return '<tr><td class="dose-band">' + esc(b.band) + '</td><td class="dose-amt">' + esc(b.dose) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  }
   function renderPlan(plan) {
     var wrap = $("planWrap");
     if (!wrap) return;
     var parts = [];
     if (plan && plan.medicines && plan.medicines.length) {
       var meds = plan.medicines.map(function (m) {
+        var head = '<div class="med-top"><span class="med-name">' + esc(m.name) + "</span>" + citeMini(m.citation) + "</div>";
         var sub = [];
-        if (m.dose) sub.push("Dose: " + esc(m.dose));
-        var fd = [m.frequency, m.duration].filter(Boolean).map(esc).join(", ");
-        if (fd) sub.push(fd);
-        return '<div class="med"><div class="med-top"><span class="med-name">' + esc(m.name) + "</span>" + citeMini(m.citation) + "</div>" +
-          (sub.length ? '<div class="med-sub">' + sub.join(" &middot; ") + "</div>" : "") + "</div>";
+        if (m.strength) sub.push(esc(m.strength));
+        if (m.frequency) sub.push(esc(m.frequency));
+        if (m.duration) sub.push(esc(m.duration));
+        var subHtml = sub.length ? '<div class="med-sub">' + sub.join(" &middot; ") + "</div>" : "";
+        // Real per-weight-band dosing table; fall back to the legacy "By weight band" line only if no bands.
+        var detail = (m.bands && m.bands.length) ? doseTable(m.bands) : (m.dose ? '<div class="med-sub">Dose: ' + esc(m.dose) + "</div>" : "");
+        return '<div class="med">' + head + subHtml + detail + "</div>";
       }).join("");
       parts.push(pgroup("Medicines", meds));
     }
     parts.push(listGroup("Supportive care", plan && plan.supportive, "item"));
     parts.push(listGroup("Home care", plan && plan.home_care, "advice"));
     parts.push(listGroup("Return immediately if", plan && plan.return_now, "sign"));
-    if (plan && plan.follow_up) parts.push(pgroup("Follow-up", prow(plan.follow_up.when, plan.follow_up.citation)));
+    if (plan && plan.follow_up) {
+      var fuInner = '<div class="prow"><span class="ptext">' + esc(plan.follow_up.when) + "</span>" + citeMini(plan.follow_up.citation) + "</div>";
+      if (plan.follow_up.detail) fuInner += '<div class="prow-detail">At the visit: ' + esc(plan.follow_up.detail) + "</div>";
+      parts.push(pgroup("Follow-up", fuInner));
+    }
     if (plan && plan.referral) parts.push(pgroup("Referral", prow(plan.referral.criterion, plan.referral.citation)));
     parts = parts.filter(Boolean);
     if (!parts.length) { wrap.innerHTML = ""; wrap.className = ""; return; }
@@ -188,7 +209,7 @@
       '<div class="plan">' +
         '<div class="plan-head">' + ICON.guide + "Management plan</div>" +
         parts.join("") +
-        '<div class="plan-foot">Every line is taken from the WHO guidelines on this device. Dosing follows the weight-band chart, not a fixed amount.</div>' +
+        '<div class="plan-foot">Every line is taken verbatim from the WHO guidelines on this device. Doses are the WHO weight-band amounts; confirm the child’s weight.</div>' +
       "</div>";
   }
 
@@ -214,7 +235,11 @@
       if (atBottom) r.scrollTop = r.scrollHeight;
     } else if (ev === "card") {
       gotTerminal = true;
-      renderCard(d.card);
+      renderCard(d.card, d.classification);
+      // Replace the early (raw-chunk) citation with the card's clean, classification-correct citation.
+      if (d.card && d.card.protocol_citation && d.card.protocol_citation.section) renderCitation({
+        section: d.card.protocol_citation.section, doc: d.card.protocol_citation.doc, page: d.card.protocol_citation.page,
+      });
       if (d.perf) {
         if (d.perf.ttftMs != null) $("hTtft").textContent = (d.perf.ttftMs / 1000).toFixed(1) + " s";
         $("hTps").textContent = d.perf.tokensPerSec != null ? Number(d.perf.tokensPerSec).toFixed(1) : "·";

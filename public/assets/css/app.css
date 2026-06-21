@@ -59,7 +59,11 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
 .verdict .sev.SELF_CARE{ background:var(--self-care); color:#04121d; }
 .verdict .sev.UNKNOWN{ background:var(--unknown); color:#0c0c0c; }
 .sev-note{ padding:13px 20px; background:var(--surf-2); font-size:15px; color:var(--mut); }
-.action{ font-size:21px; line-height:1.45; font-weight:500; margin:0 0 10px; }
+/* WHO classification — shown before the management plan (what it is, then what to do). */
+.dx{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); }
+.dx-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.dx-name{ font-size:20px; font-weight:600; color:var(--ink); }
+.action{ font-size:17px; line-height:1.45; font-weight:500; margin:12px 0 10px; color:var(--ink); }
 .why{ font-size:15px; line-height:1.6; color:var(--mut); }
 .flags{ display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0; padding:0; list-style:none; }
 .flags li{
@@ -92,6 +96,14 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
 .med-top{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
 .med-name{ font-size:16px; font-weight:600; color:var(--ink); }
 .med-sub{ margin-top:4px; font-size:13.5px; color:var(--mut); }
+/* Per-weight-band dosing table — the real WHO amounts. */
+.dose{ width:100%; margin-top:8px; border-collapse:collapse; font-size:13.5px; }
+.dose thead th{ text-align:left; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); padding:0 0 4px; border-bottom:1px solid var(--line); }
+.dose td{ padding:5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+.dose tr:last-child td{ border-bottom:0; }
+.dose .dose-band{ color:var(--mut); padding-right:14px; }
+.dose .dose-amt{ color:var(--ink); font-weight:600; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.prow-detail{ margin-top:3px; font-size:13px; line-height:1.5; color:var(--mut); }
 .plan-foot{ padding:13px 17px; background:var(--surf-2); font-size:12.5px; line-height:1.5; color:var(--dim); }
 
 /* live performance readout */

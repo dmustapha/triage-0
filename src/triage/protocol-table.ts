@@ -27,12 +27,22 @@ export interface GroundedLine {
   page: number;
 }
 
-/** A grounded medicine. `dose` is weight-band guidance ("By weight band"), NEVER a fabricated amount —
- *  the real per-band figures are on the cited dosing page. frequency/duration are verbatim when present. */
+/** One weight/age band and its dose. Both strings are verbatim substrings of data/rag/dose-tables.txt
+ *  (the clean PDF-text-layer source) — enforced by the dose-safety gate. */
+export interface DoseBand {
+  band: string; // e.g. "12 months up to 3 years (10 - <14 kg)"
+  dose: string; // e.g. "2 tablets or 10 ml"
+}
+
+/** A grounded medicine. Real per-band amounts now ship in `bands` (sourced from the clean WHO dosing
+ *  tables, never fabricated). `strength`/`frequency` are verbatim. `dose` is the legacy "By weight band"
+ *  fallback used only when a drug has no encoded band table. */
 export interface TableMedicine {
   name: string;
-  dose?: string; // always "By weight band" when a banded dosing page exists; else omitted
-  frequency?: string; // verbatim, e.g. "Give two times daily for 5 days"
+  strength?: string; // e.g. "250 mg tablet or 250 mg per 5 ml syrup" (verbatim)
+  frequency?: string; // verbatim, e.g. "give two times daily for 5 days"
+  bands?: DoseBand[]; // per-weight-band amounts (the real numbers)
+  dose?: string; // legacy fallback when no `bands` (e.g. "By weight band")
   page: number; // the dosing/treatment page that grounds this drug
 }
 
@@ -52,6 +62,8 @@ export interface ProtocolEntry {
   home_care: GroundedLine[];
   return_now: GroundedLine[];
   follow_up: GroundedLine | null;
+  /** What to assess at the follow-up visit (not just the date) — verbatim WHO follow-up instruction. */
+  follow_up_detail?: GroundedLine | null;
   referral: GroundedLine | null;
   /** A PINK class the model over-names from a pure pneumonia-sign presentation (chest indrawing / fast
    *  breathing) with NO general danger sign is, under the 2014 IMCI merge, the home-treatment sibling.
@@ -86,6 +98,88 @@ const RETURN_DIARRHOEA: GroundedLine[] = [
 ];
 // IMCI urgent referral (verbatim on p.6; reused as the emergency disposition for any escalated case).
 const REFER_URGENT: GroundedLine = { text: "Refer URGENTLY to hospital", page: 6 };
+// Universal "counsel the mother" home care for any child treated at home (IMCI Plan-A / counsel, p.23).
+const HOME_FLUID_FEED: GroundedLine[] = [
+  { text: "Give Extra Fluid", page: 23 },
+  { text: "Continue Feeding", page: 23 },
+];
+// Symptomatic antipyretic / analgesic (IMCI p.17). Surfaced on febrile + ear-pain classes.
+const PARACETAMOL: GroundedLine = { text: "Give paracetamol every 6 hours until high fever or ear pain is gone", page: 17 };
+// Universal follow-up instruction (IMCI follow-up section, p.32): re-screen for danger signs.
+const FU_DANGER: GroundedLine = { text: "Check the child for general danger signs", page: 32 };
+// Pre-referral treatment for a child being referred URGENTLY (IMCI p.21 intramuscular antibiotics, p.8).
+const IM_ANTIBIOTIC: TableMedicine = {
+  name: "Ampicillin + Gentamicin (intramuscular pre-referral first dose)",
+  dose: "Give Ampicillin (50 mg/kg) and Gentamicin (7.5 mg/kg)",
+  page: 21,
+};
+const PREVENT_HYPOGLYCAEMIA: GroundedLine = { text: "Treat the child to prevent low blood sugar", page: 8 };
+
+// ── Drug dosing (real per-band amounts; every string verbatim ⊂ data/rag/dose-tables.txt) ───────────
+const AMOXICILLIN: TableMedicine = {
+  name: "Amoxicillin",
+  strength: "250 mg tablet or 250 mg per 5 ml syrup",
+  frequency: "give two times daily for 5 days",
+  bands: [
+    { band: "2 months up to 12 months (4 - <10 kg)", dose: "1 tablet or 5 ml" },
+    { band: "12 months up to 3 years (10 - <14 kg)", dose: "2 tablets or 10 ml" },
+    { band: "3 years up to 5 years (14-19 kg)", dose: "3 tablets or 15 ml" },
+  ],
+  page: 16,
+};
+const CIPROFLOXACIN: TableMedicine = {
+  name: "Ciprofloxacin",
+  strength: "250 mg or 500 mg tablet",
+  frequency: "give 15 mg/kg two times daily for 3 days",
+  bands: [
+    { band: "Less than 6 months", dose: "1/2 of a 250 mg tablet or 1/4 of a 500 mg tablet" },
+    { band: "6 months up to 5 years", dose: "1 of a 250 mg tablet or 1/2 of a 500 mg tablet" },
+  ],
+  page: 16,
+};
+const ZINC: TableMedicine = {
+  name: "Zinc",
+  strength: "20 mg tablet",
+  bands: [
+    { band: "2 months up to 6 months", dose: "1/2 tablet daily for 14 days" },
+    { band: "6 months or more", dose: "1 tablet daily for 14 days" },
+  ],
+  page: 23,
+};
+const ARTEMETHER_LUMEFANTRINE: TableMedicine = {
+  name: "Artemether-lumefantrine",
+  strength: "20 mg artemether and 120 mg lumefantrine tablet",
+  frequency: "give two times daily for 3 days",
+  bands: [
+    { band: "5 - <10 kg (2 months up to 12 months)", dose: "1 tablet per dose" },
+    { band: "10 - <14 kg (12 months up to 3 years)", dose: "1 tablet per dose" },
+    { band: "14 - <19 kg (3 years up to 5 years)", dose: "2 tablets per dose" },
+  ],
+  page: 17,
+};
+const ORS: TableMedicine = {
+  name: "ORS (oral rehydration salts)",
+  frequency: "give recommended amount of ORS over 4-hour period",
+  bands: [
+    { band: "< 6 kg (up to 4 months)", dose: "200 - 450 ml" },
+    { band: "6 - <10 kg (4 months up to 12 months)", dose: "450 - 800 ml" },
+    { band: "10 - <12 kg (12 months up to 2 years)", dose: "800 - 960 ml" },
+    { band: "12 - 19 kg (2 years up to 5 years)", dose: "960 - 1600 ml" },
+  ],
+  page: 23,
+};
+const IRON: TableMedicine = {
+  name: "Iron",
+  strength: "ferrous sulfate + folate tablet (60 mg elemental iron) or ferrous fumarate syrup (100 mg per 5 ml)",
+  frequency: "give one dose daily for 14 days",
+  bands: [
+    { band: "2 months up to 4 months (4 - <6 kg)", dose: "1.00 ml syrup" },
+    { band: "4 months up to 12 months (6 - <10 kg)", dose: "1.25 ml syrup" },
+    { band: "12 months up to 3 years (10 - <14 kg)", dose: "1/2 tablet or 2.00 ml" },
+    { band: "3 years up to 5 years (14 - 19 kg)", dose: "1/2 tablet or 2.5 ml" },
+  ],
+  page: 18,
+};
 
 /**
  * THE TABLE. Keyed by the exact enum classification the model is constrained to emit (schema.ts).
@@ -99,8 +193,8 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "EMERGENCY",
     action: { text: "Give first dose of an appropriate antibiotic", page: 6 },
     citation: { text: "Give first dose of an appropriate antibiotic", page: 6 },
-    medicines: [],
-    supportive: [],
+    medicines: [IM_ANTIBIOTIC],
+    supportive: [PREVENT_HYPOGLYCAEMIA],
     home_care: [],
     return_now: RETURN_ANY,
     follow_up: null,
@@ -113,11 +207,12 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Give oral Amoxicillin for 5 days", page: 6 },
     citation: { text: "Give oral Amoxicillin for 5 days", page: 6 },
-    medicines: [{ name: "Amoxicillin", dose: "By weight band", frequency: "Give two times daily for 5 days", page: 16 }],
-    supportive: [],
-    home_care: [{ text: "Soothe the throat and relieve the cough with a safe remedy", page: 6 }],
+    medicines: [AMOXICILLIN],
+    supportive: [PARACETAMOL],
+    home_care: [{ text: "Soothe the throat and relieve the cough with a safe remedy", page: 6 }, ...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, ...RETURN_COUGH],
     follow_up: { text: "Follow-up in 3 days", page: 6 },
+    follow_up_detail: { text: "Assess the child for cough or difficult breathing", page: 32 },
     referral: null,
   },
   "COUGH OR COLD": {
@@ -128,7 +223,7 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     citation: { text: "Soothe the throat and relieve the cough with a safe remedy", page: 6 },
     medicines: [],
     supportive: [],
-    home_care: [{ text: "Soothe the throat and relieve the cough with a safe remedy", page: 6 }],
+    home_care: [{ text: "Soothe the throat and relieve the cough with a safe remedy", page: 6 }, ...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, ...RETURN_COUGH],
     follow_up: { text: "Follow-up in 5 days if not improving", page: 6 },
     referral: null,
@@ -141,8 +236,12 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "EMERGENCY",
     action: { text: "Give first dose of artesunate or quinine for severe malaria", page: 8 },
     citation: { text: "Give first dose of artesunate or quinine for severe malaria", page: 8 },
-    medicines: [],
-    supportive: [{ text: "Give first dose of an appropriate antibiotic", page: 8 }],
+    medicines: [IM_ANTIBIOTIC],
+    supportive: [
+      { text: "Give first dose of artesunate or quinine for severe malaria", page: 8 },
+      { text: "Give first dose of an appropriate antibiotic", page: 8 },
+      PREVENT_HYPOGLYCAEMIA,
+    ],
     home_care: [],
     return_now: RETURN_ANY,
     follow_up: null,
@@ -154,14 +253,16 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Give recommended first line oral antimalarial", page: 8 },
     citation: { text: "MALARIA Give recommended first line oral antimalarial", page: 8 },
-    medicines: [{ name: "Artemether-lumefantrine", dose: "By weight band", frequency: "Give two times daily for 3 days", page: 17 }],
+    medicines: [ARTEMETHER_LUMEFANTRINE],
     supportive: [
+      PARACETAMOL,
       { text: "Give the first dose of artemether-lumefantrine in the clinic and observe for one hour", page: 17 },
       { text: "Give second dose at home after 8 hours", page: 17 },
     ],
-    home_care: [],
+    home_care: [...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, { text: "If fever is present every day for more than 7 days, refer for assessment", page: 8 }],
     follow_up: { text: "Follow-up in 3 days if fever persists", page: 8 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
   "FEVER: NO MALARIA": {
@@ -171,10 +272,11 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     action: { text: "Give appropriate antibiotic treatment for an identified bacterial cause of fever", page: 8 },
     citation: { text: "Give appropriate antibiotic treatment for an identified bacterial cause of fever", page: 8 },
     medicines: [],
-    supportive: [],
-    home_care: [],
+    supportive: [PARACETAMOL],
+    home_care: [...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, { text: "If fever is present every day for more than 7 days, refer for assessment", page: 8 }],
     follow_up: { text: "Follow-up in 3 days if fever persists", page: 8 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
 
@@ -186,7 +288,10 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     action: { text: "Give fluid for severe dehydration (Plan C)", page: 7 },
     citation: { text: "Give fluid for severe dehydration (Plan C)", page: 7 },
     medicines: [],
-    supportive: [],
+    supportive: [
+      { text: "Start IV fluid", page: 24 },
+      { text: "Refer URGENTLY to hospital with mother giving frequent sips of ORS on the way", page: 7 },
+    ],
     home_care: [],
     return_now: [...RETURN_ANY, ...RETURN_DIARRHOEA],
     follow_up: null,
@@ -198,14 +303,12 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Give fluid, zinc supplements, and food for some dehydration (Plan B)", page: 7 },
     citation: { text: "Give fluid, zinc supplements, and food for some dehydration (Plan B)", page: 7 },
-    medicines: [
-      { name: "ORS", page: 7 },
-      { name: "Zinc", dose: "By weight band", page: 23 },
-    ],
+    medicines: [ORS, ZINC],
     supportive: [],
-    home_care: [],
+    home_care: [...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, ...RETURN_DIARRHOEA],
     follow_up: { text: "Follow-up in 5 days if not improving", page: 7 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
   "NO DEHYDRATION": {
@@ -214,9 +317,9 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "ROUTINE",
     action: { text: "Give fluid, zinc supplements, and food to treat diarrhoea at home (Plan A)", page: 7 },
     citation: { text: "Give fluid, zinc supplements, and food to treat diarrhoea at home (Plan A)", page: 7 },
-    medicines: [{ name: "Zinc", dose: "By weight band", page: 23 }],
+    medicines: [ZINC],
     supportive: [],
-    home_care: [],
+    home_care: [...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, ...RETURN_DIARRHOEA],
     follow_up: { text: "Follow-up in 5 days if not improving", page: 7 },
     referral: null,
@@ -227,11 +330,12 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Give ciprofloxacin for 3 days", page: 7 },
     citation: { text: "DYSENTERY Give ciprofloxacin for 3 days", page: 7 },
-    medicines: [{ name: "Ciprofloxacin", dose: "By weight band", frequency: "Give 15mg/kg two times daily for 3 days", page: 16 }],
+    medicines: [CIPROFLOXACIN],
     supportive: [],
-    home_care: [],
+    home_care: [...HOME_FLUID_FEED],
     return_now: [...RETURN_ANY, ...RETURN_DIARRHOEA],
     follow_up: { text: "Follow-up in 3 days", page: 7 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
 
@@ -242,7 +346,7 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "EMERGENCY",
     action: { text: "Give first dose of an appropriate antibiotic", page: 9 },
     citation: { text: "MASTOIDITIS Give first dose of an appropriate antibiotic", page: 9 },
-    medicines: [],
+    medicines: [IM_ANTIBIOTIC],
     supportive: [{ text: "Give first dose of paracetamol for pain", page: 9 }],
     home_care: [],
     return_now: RETURN_ANY,
@@ -255,11 +359,12 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Dry the ear by wicking", page: 9 },
     citation: { text: "ACUTE EAR INFECTION", page: 16 },
-    medicines: [{ name: "Amoxicillin", dose: "By weight band", frequency: "Give two times daily for 5 days", page: 16 }],
-    supportive: [{ text: "Dry the ear by wicking", page: 9 }],
+    medicines: [AMOXICILLIN],
+    supportive: [PARACETAMOL, { text: "Dry the ear by wicking", page: 9 }],
     home_care: [],
     return_now: RETURN_ANY,
     follow_up: { text: "Follow-up in 5 days", page: 9 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
   "CHRONIC EAR INFECTION": {
@@ -284,7 +389,7 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     protocol: "IMCI",
     colour: "PINK",
     severity: "EMERGENCY",
-    action: { text: "SEVERE ANAEMIA", page: 11 },
+    action: { text: "Refer URGENTLY to hospital", page: 6 },
     citation: { text: "SEVERE ANAEMIA", page: 11 },
     medicines: [],
     supportive: [],
@@ -299,16 +404,49 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     severity: "URGENT",
     action: { text: "Give iron", page: 11 },
     citation: { text: "ANAEMIA Give iron", page: 11 },
-    medicines: [
-      { name: "Iron", dose: "By weight band", frequency: "Give one dose daily for 14 days", page: 18 },
-      { name: "Mebendazole", page: 11 },
-    ],
+    medicines: [IRON, { name: "Mebendazole", frequency: "500 mg mebendazole as a single dose", page: 20 }],
     supportive: [
       { text: "Give mebendazole if child is 1 year or older and has not had a dose in the previous 6 months", page: 11 },
     ],
     home_care: [],
     return_now: RETURN_ANY,
     follow_up: { text: "Follow-up in 14 days", page: 11 },
+    follow_up_detail: FU_DANGER,
+    referral: null,
+  },
+
+  // ── IMCI: acute malnutrition ─────────────────────────────────────────────────────
+  "SEVERE ACUTE MALNUTRITION": {
+    protocol: "IMCI",
+    colour: "YELLOW",
+    severity: "URGENT",
+    action: { text: "Give ready-to-use therapeutic food", page: 10 },
+    citation: { text: "Give ready-to-use therapeutic food", page: 10 },
+    medicines: [AMOXICILLIN],
+    supportive: [
+      { text: "Give Ready-to-Use Therapeutic Food", page: 10 },
+      { text: "Assess for possible TB infection", page: 10 },
+    ],
+    home_care: [...HOME_FLUID_FEED],
+    return_now: RETURN_ANY,
+    follow_up: { text: "Follow-up in 7 days", page: 10 },
+    follow_up_detail: FU_DANGER,
+    // Refer urgently if the SAM is COMPLICATED (oedema of both feet, a medical complication, or fails
+    // the appetite test). Surfaced so the worker escalates the complicated path.
+    referral: { text: "Refer URGENTLY to hospital", page: 10 },
+  },
+  "MODERATE ACUTE MALNUTRITION": {
+    protocol: "IMCI",
+    colour: "YELLOW",
+    severity: "URGENT",
+    action: { text: "Give ready-to-use therapeutic food", page: 10 },
+    citation: { text: "Give ready-to-use therapeutic food", page: 10 },
+    medicines: [],
+    supportive: [{ text: "Assess for possible TB infection", page: 10 }],
+    home_care: [...HOME_FLUID_FEED],
+    return_now: RETURN_ANY,
+    follow_up: { text: "Follow-up in 30 days", page: 10 },
+    follow_up_detail: FU_DANGER,
     referral: null,
   },
 
@@ -370,7 +508,10 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     action: { text: "DO NOT LEAVE THE PERSON ALONE", page: 61 },
     citation: { text: "DO NOT LEAVE THE PERSON ALONE", page: 61 },
     medicines: [],
-    supportive: [],
+    supportive: [
+      { text: "Remove access to means of self-harm", page: 145 },
+      { text: "Offer and activate psychosocial support", page: 145 },
+    ],
     home_care: [],
     return_now: [],
     follow_up: null,
@@ -425,8 +566,13 @@ const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
   { test: /diarrh|loose stool|watery stool|\bstool\b|dehydrat|skin pinch|sunken|\bORS\b|runny poo/i, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "DYSENTERY"] },
   { test: /\bear\b|mastoid|behind the ear/i, classes: ["MASTOIDITIS", "ACUTE EAR INFECTION", "CHRONIC EAR INFECTION"] },
   { test: /pallor|\bpale\b|an[ae]mia/i, classes: ["SEVERE ANAEMIA", "ANAEMIA"] },
-  { test: /malnutrition|wasted|wasting|oedema|edema|\bthin\b|not eating|refus\w* to eat|\bMUAC\b/i, classes: ["SEVERE ACUTE MALNUTRITION", "MODERATE ACUTE MALNUTRITION"] },
-  { test: /mood|depress|\bsad\b|loss of interest|hopeless|voices|hallucin|delusion|psychos|paranoi|spying|disorganis|convuls|seizure|epilep|\bfits?\b|suicid|self-?\s?harm|harm (?:him|her|them)self|kill (?:him|her|them)self|substance|alcohol|withdrawal|overdose|dementia|memory loss/i, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE"] },
+  // Malnutrition needs an anthropometric/oedema sign (wasting, low MUAC, swollen feet) — NOT just poor
+  // appetite ("not eating" collides with depression and any acute illness, so it is deliberately excluded).
+  { test: /malnutrition|wasted|wasting|oedema|edema|\bthin\b|\bMUAC\b|arm[- ]?circumference|swelling of (?:both )?feet|swollen feet|feet (?:are )?swollen/i, classes: ["SEVERE ACUTE MALNUTRITION", "MODERATE ACUTE MALNUTRITION"] },
+  { test: /mood|depress|\bsad\b|loss of interest|no interest|hopeless|worthless|\bvoices?\b|hearing (?:a )?voice|hallucin|delusion|psychos|paranoi|spying|disorganis|withdrawn|tearful|insomnia|can'?t sleep|not sleeping|hasn'?t slept|sleepless|trouble sleeping|convuls|seizure|epilep|\bfits?\b|suicid|self-?\s?harm|harm (?:him|her|them)self|kill (?:him|her|them)self|substance|alcohol|withdrawal|overdose|dementia|memory loss/i, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE"] },
+  // General danger signs with no other main symptom still route to the severe IMCI classes (so a pure
+  // danger-sign emergency escalates instead of abstaining). The danger-sign gate confirms the severity.
+  { test: /not able to (?:drink|feed|breastfeed)|unable to (?:drink|feed|breastfeed)|cannot (?:drink|feed)|won'?t (?:drink|feed|breastfeed)|vomit(?:s|ing)? everything|unconscious|unrousable|lethargic|floppy|stridor|grunting|cyanos|stopped breathing|not breathing/i, classes: ["SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "VERY SEVERE FEBRILE DISEASE", "SEVERE DEHYDRATION"] },
 ];
 
 /**
@@ -438,7 +584,10 @@ const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
 export function allowedClassesFor(caseText: string): string[] {
   const set = new Set<string>();
   for (const { test, classes } of SYMPTOM_CLASSES) if (test.test(caseText)) classes.forEach((c) => set.add(c));
-  if (set.size === 0) return [...CLASSIFICATION_ENUM];
+  // No recognised IMCI/mhGAP main symptom or danger sign → force UNKNOWN (abstain). This stops an
+  // out-of-scope case (e.g. an adult abdominal/OB complaint) from being free-classified across all 25
+  // classes and hallucinating a wrong emergency. The model can only confirm "no match → escalate".
+  if (set.size === 0) return ["UNKNOWN"];
   set.add("UNKNOWN");
   return [...set];
 }
