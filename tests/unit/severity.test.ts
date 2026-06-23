@@ -103,3 +103,13 @@ test("finalizeSeverity GATE: EMERGENCY only when a danger sign is actually prese
   assert.equal(finalizeSeverity("PNEUMONIA", "oral amoxicillin 5 days", "chest indrawing, no danger signs", []), "URGENT");
   assert.equal(finalizeSeverity("NO PNEUMONIA: COUGH OR COLD", "advise home care", "mild cough", []), "ROUTINE");
 });
+
+test("hasEmergencySign: clause-scoped negation (no thoughts of self-harm) + lay suicidality", () => {
+  // "no thoughts of self-harm" must NOT escalate (the comma-clause carries the negation)
+  assert.equal(hasEmergencySign("6 weeks of persistent sadness, poor appetite, no thoughts of self-harm"), false);
+  // a real danger sign across a "but" clause MUST still escalate
+  assert.equal(hasEmergencySign("child with no fever but is unconscious"), true);
+  // negated convulsion stays safe; lay suicidality escalates
+  assert.equal(hasEmergencySign("fever, no convulsions, alert and drinking"), false);
+  assert.equal(hasEmergencySign("low mood, says life isn't worth living"), true);
+});

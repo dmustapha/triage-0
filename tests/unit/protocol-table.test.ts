@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { config } from "../../src/config.js";
-import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, type GroundedLine } from "../../src/triage/protocol-table.js";
+import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
 
 const mapPath = config.citationMapPath;
 const dosePath = new URL("../../data/rag/dose-tables.txt", import.meta.url).pathname;
@@ -159,4 +159,22 @@ test("colour band → severity is internally consistent for IMCI entries", () =>
       assert.equal(e.severity, map[e.colour], `${cls}: colour ${e.colour} must map to severity ${map[e.colour]} (got ${e.severity})`);
     }
   }
+});
+
+test("misroute guards: epilepsy/psychosis routing, self-harm gate, ear reconcile (deterministic)", () => {
+  const psy = "20 year old man, for 6 weeks convinced his food is poisoned, hearing voices commenting on him, not sleeping, no talk of self-harm.";
+  assert.ok(allowedClassesFor(psy).includes("PSYCHOSIS"), "psychosis must be offered");
+  assert.ok(!allowedClassesFor(psy).includes("SELF-HARM / SUICIDE"), "self-harm dropped when 'no talk of self-harm'");
+
+  const epi = "9 year old, three episodes of sudden jerking with loss of awareness over the past month, normal in between, no fever.";
+  assert.ok(allowedClassesFor(epi).includes("EPILEPSY"), "seizure synonyms must surface EPILEPSY");
+  assert.ok(!allowedClassesFor(epi).includes("MALARIA"), "'no fever' must not surface fever classes");
+
+  // self-harm language gate: lay phrasings count, negated mentions do not
+  assert.ok(hasSelfHarmLanguage("says life isn't worth living and thought about ending it"));
+  assert.ok(!hasSelfHarmLanguage("low mood, no thoughts of self-harm"));
+
+  // ear reconcile: swelling behind the ear is MASTOIDITIS even with fever; otherwise untouched
+  assert.equal(reconcileEar("VERY SEVERE FEBRILE DISEASE", "fever and a boggy swelling behind the right ear pushing it forward"), "MASTOIDITIS");
+  assert.equal(reconcileEar("PNEUMONIA", "cough and fast breathing, no ear problem"), "PNEUMONIA");
 });

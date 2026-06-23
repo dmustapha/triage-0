@@ -51,7 +51,7 @@ export function classifyToSeverity(classification: string, action: string): Seve
 // DOWNGRADE a true EMERGENCY — clinically the worst error). NOTE: "chest indrawing" and "fast
 // breathing" are deliberately NOT here — alone they are the home-treatment (Yellow) band, not severe.
 const DANGER_RE =
-  /(unable to (?:drink|feed|breastfeed|wake|rouse)|not (?:been )?able to (?:drink|feed|breastfeed|wake)|cannot (?:drink|feed|wake)|can'?t (?:drink|feed|wake|keep)|won'?t (?:drink|feed|breastfeed|wake)|not (?:drinking|feeding|breastfeeding|waking|responding)|refus(?:es|ing) (?:to )?(?:drink|feed)|vomit(?:s|ing)? everything|convuls\w*|seizure|fits|lethargic|lethargy|drowsy|floppy|limp|unconscious|unrousable|unresponsive|very sleepy|won'?t wake|not waking|stridor|grunting|gasping|apno?ea|stopped breathing|not breathing|blue (?:lips|skin|tinge)|cyanos\w*|central cyanosis|severe respiratory distress|severe chest indrawing|coma|comatose|suicid\w*|self-?harm|harm (?:them|him|her)self|kill (?:them|him|her)self|bleeding heavily|severe dehydration|very (?:sick|weak|ill))/gi;
+  /(unable to (?:drink|feed|breastfeed|wake|rouse)|not (?:been )?able to (?:drink|feed|breastfeed|wake)|cannot (?:drink|feed|wake)|can'?t (?:drink|feed|wake|keep)|won'?t (?:drink|feed|breastfeed|wake)|not (?:drinking|feeding|breastfeeding|waking|responding)|refus(?:es|ing) (?:to )?(?:drink|feed)|vomit(?:s|ing)? everything|convuls\w*|seizure|fits|lethargic|lethargy|drowsy|floppy|limp|unconscious|unrousable|unresponsive|very sleepy|won'?t wake|not waking|stridor|grunting|gasping|apno?ea|stopped breathing|not breathing|blue (?:lips|skin|tinge)|cyanos\w*|central cyanosis|severe respiratory distress|severe chest indrawing|coma|comatose|suicid\w*|self-?harm|harm (?:them|him|her)self|kill (?:them|him|her)self|not worth living|isn'?t worth living|wants? to die|better off dead|ending (?:it|his life|her life|their life)|take (?:his|her|their) own life|bleeding heavily|severe dehydration|very (?:sick|weak|ill))/gi;
 
 // Pneumonia-sign presentation: chest indrawing / fast breathing / an explicit breaths-per-minute count.
 // The danger-sign gate ONLY downgrades when one of these IS present (a pure pneumonia presentation),
@@ -65,8 +65,23 @@ const PNEUMONIA_SIGN_RE = /(chest indrawing|fast breathing|breathing (?:at )?\d+
 export function hasEmergencySign(caseText: string, redFlags: string[] = []): boolean {
   const hay = `${caseText} ${redFlags.join(" ")}`.toLowerCase();
   for (const m of hay.matchAll(DANGER_RE)) {
-    const pre = hay.slice(Math.max(0, (m.index ?? 0) - 14), m.index);
-    if (/\b(no|not|without|denies|denied|negative for|absent|free of|no signs of)\s*$/.test(pre)) continue;
+    const idx = m.index ?? 0;
+    // Scope negation to the CURRENT clause: scan back only to the previous clause boundary
+    // (comma, semicolon, or a polarity-flipping conjunction). A fixed char window was too short for
+    // "no thoughts of self-harm" (false-escalated DEPRESSION) and too greedy for "no fever but
+    // unconscious" (would have wrongly negated a real danger sign). Clause-scoping fixes both.
+    // Boundary tokens are whole words (surrounding spaces): " though" alone is a substring of
+    // "thoughts" and would falsely split "no thoughts of self-harm", severing the negation.
+    const boundary = Math.max(
+      hay.lastIndexOf(",", idx - 1),
+      hay.lastIndexOf(";", idx - 1),
+      hay.lastIndexOf(" but ", idx - 1),
+      hay.lastIndexOf(" however ", idx - 1),
+      hay.lastIndexOf(" though ", idx - 1),
+      hay.lastIndexOf(" yet ", idx - 1)
+    );
+    const clause = hay.slice(boundary < 0 ? 0 : boundary, idx);
+    if (/\b(no|not|without|denies|denied|negative for|absent|free of|never|no signs? of|no talk of|no thoughts? of)\b/.test(clause)) continue;
     return true;
   }
   return false;
