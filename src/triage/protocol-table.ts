@@ -581,7 +581,23 @@ const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
  * retrieval abstain gate + the model's UNKNOWN handle a non-clinical case). This is the per-request enum
  * passed to the extract grammar so the model classifies within the right symptom, not across all 25.
  */
+/** Adult cardiac chest pain: out of this tool's scope (paediatric IMCI + mhGAP). Detected so it abstains
+ *  rather than being mis-routed to a paediatric respiratory class by the word "chest". */
+function isAdultCardiac(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  const chestPain = /chest pain|crushing (?:chest|central)|pain in (?:the |his |her )?chest|chest tightness|tightness in (?:the |his |her )?chest|pressure in (?:the |his |her )?chest/.test(t);
+  const cardiacRadiation = /left arm|down (?:the|his|her) arm|into (?:the|his|her) (?:arm|jaw)|radiat\w*|spreading to|to (?:the|his|her) jaw|crushing/.test(t);
+  const isChild = /\bmonths? old\b|\binfant\b|\bbaby\b|\bnewborn\b|\btoddler\b|\bchild\b|\b(?:[0-9]|1[0-5])[- ]?(?:year|yr)s?[- ]?old\b/.test(t);
+  return chestPain && cardiacRadiation && !isChild;
+}
+
 export function allowedClassesFor(caseText: string): string[] {
+  // Out-of-scope guard: this tool is paediatric IMCI + mental-health mhGAP, NOT adult physical
+  // medicine. An adult cardiac presentation (chest pain that is crushing or radiates to the arm/jaw,
+  // in someone who is not a child) must ABSTAIN, not be pulled into a paediatric respiratory class by
+  // the bare word "chest". A child's "chest indrawing" has no "chest pain"/radiation, so it is untouched.
+  if (isAdultCardiac(caseText)) return ["UNKNOWN"];
+
   const set = new Set<string>();
   for (const { test, classes } of SYMPTOM_CLASSES) if (test.test(caseText)) classes.forEach((c) => set.add(c));
 

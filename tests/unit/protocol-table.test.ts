@@ -178,3 +178,10 @@ test("misroute guards: epilepsy/psychosis routing, self-harm gate, ear reconcile
   assert.equal(reconcileEar("VERY SEVERE FEBRILE DISEASE", "fever and a boggy swelling behind the right ear pushing it forward"), "MASTOIDITIS");
   assert.equal(reconcileEar("PNEUMONIA", "cough and fast breathing, no ear problem"), "PNEUMONIA");
 });
+
+test("out-of-scope guard: adult cardiac chest pain abstains; paediatric respiratory is untouched", () => {
+  const cardiac = allowedClassesFor("A 40 year old man with crushing chest pain spreading to his left arm.");
+  assert.deepEqual(cardiac, ["UNKNOWN"], "adult cardiac chest pain must abstain (out of paediatric+mhGAP scope)");
+  const paed = allowedClassesFor("5 year old, cough and fast breathing, chest indrawing");
+  assert.ok(paed.includes("PNEUMONIA"), "a child's chest indrawing must still surface the respiratory classes");
+});

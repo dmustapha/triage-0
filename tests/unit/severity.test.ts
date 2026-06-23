@@ -113,3 +113,12 @@ test("hasEmergencySign: clause-scoped negation (no thoughts of self-harm) + lay 
   assert.equal(hasEmergencySign("fever, no convulsions, alert and drinking"), false);
   assert.equal(hasEmergencySign("low mood, says life isn't worth living"), true);
 });
+
+test("classifyToSeverity: a named treatable condition with counselling phrases is URGENT, not ROUTINE (no under-call)", () => {
+  // P0 guard: "advise the mother / continue feeding" must NOT down-band a treatable condition to home care.
+  assert.equal(classifyToSeverity("PNEUMONIA", "Give amoxicillin. Advise the mother to continue feeding."), "URGENT");
+  assert.equal(classifyToSeverity("DYSENTERY", "Give ciprofloxacin. Continue feeding."), "URGENT");
+  // genuinely mild / negated classes still band ROUTINE
+  assert.equal(classifyToSeverity("COUGH OR COLD", "Soothe the throat, advise the mother, continue feeding."), "ROUTINE");
+  assert.equal(classifyToSeverity("NO DEHYDRATION", "Give fluid and continue feeding (Plan A)."), "ROUTINE");
+});
