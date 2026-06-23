@@ -28,10 +28,9 @@ a{ color:inherit; }
 /* brand */
 .brand{ display:flex; align-items:center; gap:11px; text-decoration:none; }
 .brand .mark{
-  width:36px; height:36px; border-radius:var(--r); flex:none;
-  background:linear-gradient(155deg,#173a2e,#10201a); border:1px solid var(--line-2);
-  display:grid; place-items:center;
+  width:36px; height:36px; flex:none; display:block;
 }
+.brand .mark img, .brand .mark svg{ width:100%; height:100%; display:block; }
 .wordmark{ font-family:var(--font-display); font-weight:700; font-size:20px; letter-spacing:-.02em; }
 .wordmark span{ color:var(--accent); }
 .brand .tag{ font-size:12.5px; color:var(--dim); margin-top:1px; }
