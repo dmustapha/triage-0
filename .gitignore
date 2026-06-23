@@ -63,3 +63,8 @@ proposals/
 research/
 tasks/
 warroom/
+
+# Local (demo prep + submission writeup)
+DEMO-*.md
+RECORDING-SHEET.md
+submission/DETAILS-BODY.*
