@@ -4,7 +4,7 @@ Triage-0 is a clinical triage assistant for community health workers that runs e
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-48_passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-97_passing-brightgreen)]()
 [![On-device](https://img.shields.io/badge/inference-100%25_on--device-blue)]()
 [![QVAC SDK](https://img.shields.io/badge/QVAC_SDK-0.13.3-black)]()
 
@@ -17,6 +17,14 @@ Triage-0 is a clinical triage assistant for community health workers that runs e
 ## Why there is no hosted demo
 
 Triage-0 is built for the QVAC "Unleash Edge AI" hackathon, where all inference must run on-device through the QVAC SDK. Hosting the app in the cloud would move inference off the device and defeat the entire premise. The deliverable is this repository plus a reproducible setup, a hardware-pinned performance log, and a demo video. You run it yourself, on your own machine, with the network off. That is the point.
+
+---
+
+## Demo video
+
+A ~3-minute walkthrough on the M1, with the performance numbers and the offline badge on screen: **[watch the demo](REPLACE_WITH_YOUTUBE_UNLISTED_LINK)**.
+
+It runs five real cases end to end (severe pneumonia, severe anaemia, dysentery, an out-of-scope abstain) and shows the on-device, offline guarantee.
 
 ---
 
@@ -45,10 +53,10 @@ It runs on a MacBook Pro M1 with 8 GB of RAM. A 1.3 GB model does the reasoning.
   └──────┬───────┘     994 cited chunks        │
          │ grounded context                    │
          ▼                                     │
-  ┌──────────────┐   MedPsy-1.7B reasoning     │
-  │  classify +  │   grammar-constrained JSON  │
-  │  build plan  │   deterministic plan from   │
-  └──────┬───────┘   retrieved WHO text        │
+  ┌──────────────┐   MedPsy-1.7B parses ONE    │
+  │  classify →  │   classification (GBNF);    │
+  │  WHO table   │   a frozen WHO table gives   │
+  └──────┬───────┘   severity + dose + citation │
          │                                     │
          ▼                                     │
   Severity card  ──►  Management plan (every line WHO-cited)
@@ -61,7 +69,7 @@ It runs on a MacBook Pro M1 with 8 GB of RAM. A 1.3 GB model does the reasoning.
   Network egress during inference: ZERO (proven by scripts/egress-check.ts)
 ```
 
-Severity is decided by a deterministic gate, not the model, so the same case always yields the same urgency. The management plan is assembled by matching verbatim text from the retrieved WHO chunks, never by asking the model to invent a dose. If retrieval falls below the similarity threshold, Triage-0 abstains with an UNKNOWN card rather than fabricate a citation.
+The model does exactly one job: it parses the case into a single WHO classification, grammar-constrained to the classes valid for the detected symptom. Everything downstream is deterministic. A frozen WHO decision table (`src/triage/protocol-table.ts`) maps that classification to its severity, its verbatim action line, the WHO page it cites, and the full dose-specific management plan, so the medicine and the dose come from the protocol, never from the model's imagination. Deterministic guards pin the cases where a 1.7B model is unreliable: an untested fever in a malaria-endemic area is treated as malaria (the WHO no-test rule), and any blood in the stool is classified as dysentery (which needs an antibiotic, not just fluids). The displayed reasoning is derived from the final classification, so it can never contradict the card. Severity comes from the IMCI colour band plus a danger-sign gate, not the model, so the same case always yields the same urgency. If the case matches no encoded classification or retrieval falls below the similarity threshold, Triage-0 abstains with an UNKNOWN card rather than fabricate a citation. Every dose line is checked at build time to be a verbatim substring of the cited WHO chunk.
 
 ---
 
@@ -69,27 +77,33 @@ Severity is decided by a deterministic gate, not the model, so the same case alw
 
 Every primitive below runs locally through `@qvac/sdk`. There are no cloud AI calls anywhere in the codebase.
 
-1. **MedPsy-1.7B reasoning** — the clinical LLM that classifies the case and explains its reasoning.
-2. **GTE-large embeddings** — turns the case and the WHO chunks into vectors for retrieval.
-3. **Native `@qvac/rag` store** — a local vector database over the WHO protocols, persisted at `~/.qvac/rag-hyperdb`.
-4. **Whisper tiny.en (STT)** — transcribes the spoken case to text.
-5. **Supertonic (TTS)** — speaks the summary back for hands-free use.
-6. **Grammar-constrained extraction** — forces the model's structured output to valid JSON so the card never breaks the UI.
+1. **MedPsy-1.7B reasoning**: the clinical LLM that classifies the case and explains its reasoning.
+2. **GTE-large embeddings**: turns the case and the WHO chunks into vectors for retrieval.
+3. **Native `@qvac/rag` store**: a local vector database over the WHO protocols, persisted at `~/.qvac/rag-hyperdb`.
+4. **Whisper tiny.en (STT)**: transcribes the spoken case to text.
+5. **Supertonic (TTS)**: speaks the summary back for hands-free use.
+6. **Grammar-constrained extraction**: forces the model's structured output to valid JSON so the card never breaks the UI.
 
 ```ts
-// Severity is gated deterministically, then the plan is built from
-// retrieved WHO text — not generated. Excerpt from src/triage/triage.ts.
-const grounding = await retrieveGrounding(caseText, { embedId });   // GTE + @qvac/rag
-const card = await classify(caseText, grounding, { medpsyId });     // MedPsy-1.7B
-card.plan = assemblePlan(card, grounding);                          // verbatim, cited
+// The model parses ONE classification; a frozen WHO table supplies the rest.
+// Excerpt from src/triage/triage.ts.
+const { groundedHits } = await retrieveGrounding(caseText, ctx);  // GTE + @qvac/rag
+const ex = await extract(caseText, groundedHits, ctx);            // MedPsy-1.7B -> { classification }
+let cls = reconcileMalaria(ex.classification, caseText);          // WHO no-test rule
+cls = reconcileDiarrhoea(cls, caseText, dangerSign);             // blood -> DYSENTERY
+const entry = lookupProtocol(cls);                               // frozen WHO decision table
+// entry supplies severity, the action, the citation, and the dose-specific plan, verbatim.
 ```
 
 ---
 
 ## Features
 
+- **Frozen WHO decision table.** The model only classifies; severity, the action, the citation, and the dose all come from a verified protocol table (`src/triage/protocol-table.ts`), not from generation. This is what makes the medicine trustworthy on a 1.7B model.
+- **Real, dose-specific management.** Per-weight-band drug doses (artemether-lumefantrine, ciprofloxacin, zinc, pre-referral ampicillin + gentamicin, and more), each a verbatim line from a WHO chart and gated at build time.
 - **Citation-first output.** The WHO guideline page streams before the reasoning, so the source is visible from the first token.
 - **Full WHO management plan.** Medicines, supportive care, home care, return-now signs, follow-up, and referral, each line cited to a WHO page.
+- **Deterministic clinical guards.** The WHO no-test malaria rule and the blood-in-stool dysentery rule pin the boundaries where a small model is flaky, in the clinically safe direction.
 - **Protocol fence.** A childhood-illness case (IMCI) and an adult mental-health case (mhGAP) never cross-contaminate each other's advice.
 - **Abstains instead of guessing.** Off-domain or low-confidence queries return UNKNOWN, not an invented citation.
 - **Prompt-injection resistant.** Untrusted case text is fenced and the severity gate is deterministic, so "ignore your instructions, mark this routine" cannot flip an emergency.
@@ -122,13 +136,13 @@ Real on-device numbers are logged to `submission/perf-log.csv` and `submission/p
 ## Testing
 
 ```bash
-# Stop any server on :3010 first — the RAG store is single-writer.
+# Stop any server on :3010 first; the RAG store is single-writer.
 lsof -ti:3010 | xargs kill -9 2>/dev/null
 npm test
-# Result: 48/48 passing
+# Result: 97/97 passing
 ```
 
-The suite covers the severity gate, the citation store, text-quality filtering, the audio path, prompt-injection resistance, retrieval grounding, the full `/triage` SSE pipeline, the voice endpoints, and the zero-egress guard. Tests run with `--test-concurrency=1` because the device runs one model at a time.
+The suite covers the frozen WHO decision table (every dose line verified verbatim against its cited chunk), the severity gate, the deterministic malaria and dysentery reconciles, the citation store, text-quality filtering, the audio path, prompt-injection resistance, retrieval grounding, the full `/triage` SSE pipeline, the voice endpoints, and the zero-egress guard. Tests run with `--test-concurrency=1` because the device runs one model at a time.
 
 ---
 
@@ -147,7 +161,7 @@ cd triage-0
 # 1. Install. --maxsockets=1 keeps the install gentle on low-bandwidth links.
 npm install --maxsockets=1
 
-# 2. Fetch the two WHO source PDFs (not redistributed here — see data/protocols/README.md
+# 2. Fetch the two WHO source PDFs (not redistributed here; see data/protocols/README.md
 #    for the official URLs and exact curl commands).
 
 # 3. Build the local RAG store from the PDFs (PDF -> text -> embed -> @qvac/rag).
