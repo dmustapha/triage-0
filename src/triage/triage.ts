@@ -28,6 +28,7 @@ import {
   allowedClassesFor,
   reconcileMalaria,
   reconcileDiarrhoea,
+  reconcileEar,
   hasBloodInStool,
   deterministicReasoning,
   CLASSIFICATION_ENUM,
@@ -273,6 +274,7 @@ export async function triageFromHits(
       let cls = reconcileMalaria(ex.classification, caseText);
       cls = reconcileDiarrhoea(cls, caseText, hasEmergencySign(caseText, ex.red_flags));
       if (bloodStool) cls = "DYSENTERY";
+      cls = reconcileEar(cls, caseText); // an ear problem stays an ear problem even with fever
       let entry = lookupProtocol(cls);
       const severity = entry
         ? finalizeSeverityV2(cls, ex.action, caseText, ex.red_flags)

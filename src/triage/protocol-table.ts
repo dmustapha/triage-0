@@ -569,7 +569,7 @@ const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
   // Malnutrition needs an anthropometric/oedema sign (wasting, low MUAC, swollen feet) — NOT just poor
   // appetite ("not eating" collides with depression and any acute illness, so it is deliberately excluded).
   { test: /malnutrition|wasted|wasting|oedema|edema|\bthin\b|\bMUAC\b|arm[- ]?circumference|swelling of (?:both )?feet|swollen feet|feet (?:are )?swollen/i, classes: ["SEVERE ACUTE MALNUTRITION", "MODERATE ACUTE MALNUTRITION"] },
-  { test: /mood|depress|\bsad\b|loss of interest|no interest|hopeless|worthless|\bvoices?\b|hearing (?:a )?voice|hallucin|delusion|psychos|paranoi|spying|disorganis|withdrawn|tearful|insomnia|can'?t sleep|not sleeping|hasn'?t slept|sleepless|trouble sleeping|convuls|seizure|epilep|\bfits?\b|suicid|self-?\s?harm|harm (?:him|her|them)self|kill (?:him|her|them)self|substance|alcohol|withdrawal|overdose|dementia|memory loss/i, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE"] },
+  { test: /mood|depress|\bsad\b|loss of interest|no interest|hopeless|worthless|\bvoices?\b|hearing (?:a )?voice|hallucin|delusion|psychos|paranoi|spying|disorganis|withdrawn|tearful|insomnia|can'?t sleep|not sleeping|hasn'?t slept|sleepless|trouble sleeping|convuls|seizure|epilep|\bfits?\b|jerk\w*|loss of awareness|loss of consciousness|staring spell|absence seizure|suicid|self-?\s?harm|harm (?:him|her|them)self|kill (?:him|her|them)self|substance|alcohol|withdrawal|overdose|dementia|memory loss/i, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE"] },
   // General danger signs with no other main symptom still route to the severe IMCI classes (so a pure
   // danger-sign emergency escalates instead of abstaining). The danger-sign gate confirms the severity.
   { test: /not able to (?:drink|feed|breastfeed)|unable to (?:drink|feed|breastfeed)|cannot (?:drink|feed)|won'?t (?:drink|feed|breastfeed)|vomit(?:s|ing)? everything|unconscious|unrousable|lethargic|floppy|stridor|grunting|cyanos|stopped breathing|not breathing/i, classes: ["SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "VERY SEVERE FEBRILE DISEASE", "SEVERE DEHYDRATION"] },
@@ -584,12 +584,45 @@ const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
 export function allowedClassesFor(caseText: string): string[] {
   const set = new Set<string>();
   for (const { test, classes } of SYMPTOM_CLASSES) if (test.test(caseText)) classes.forEach((c) => set.add(c));
+
+  // Negated-fever guard: "no fever" / "afebrile" must NOT surface the fever classes. Otherwise a
+  // seizure case that mentions "no fever" gets MALARIA / VERY SEVERE FEBRILE offered and the model
+  // picks one (the epilepsy→malaria misroute). Only suppress when there is no positive fever sign.
+  const noFever = /\bno fever\b|\bafebrile\b|\bwithout (?:a )?fever\b|\bno temperature\b/i.test(caseText);
+  const positiveFever = /\bfebrile\b|\bhot\b|\bmalaria\b|stiff neck|temperature (?:of |is |reading )?\d|\b(?:high|spiking|3[89]|40)\b[^.]{0,12}fever|fever[^.]{0,12}\b(?:3[89]|40|high)\b/i.test(caseText);
+  if (noFever && !positiveFever) {
+    for (const c of ["VERY SEVERE FEBRILE DISEASE", "MALARIA", "FEVER: NO MALARIA"]) set.delete(c);
+  }
+
+  // Self-harm gate: SELF-HARM / SUICIDE is only a real option when self-harm/suicide language is
+  // genuinely present (non-negated). "no talk of self-harm" / "no thoughts of self-harm" must NOT
+  // offer it, or the model over-picks SELF-HARM for a psychosis or depression case.
+  if (set.has("SELF-HARM / SUICIDE") && !hasSelfHarmLanguage(caseText)) set.delete("SELF-HARM / SUICIDE");
+
   // No recognised IMCI/mhGAP main symptom or danger sign → force UNKNOWN (abstain). This stops an
   // out-of-scope case (e.g. an adult abdominal/OB complaint) from being free-classified across all 25
   // classes and hallucinating a wrong emergency. The model can only confirm "no match → escalate".
   if (set.size === 0) return ["UNKNOWN"];
   set.add("UNKNOWN");
   return [...set];
+}
+
+/**
+ * Is genuine, non-negated self-harm/suicide language present? Used to gate the SELF-HARM / SUICIDE
+ * class so a psychosis or depression case that explicitly states "no thoughts of self-harm" is not
+ * offered (and mis-picked as) self-harm. Catches both the clinical terms and lay phrasings.
+ */
+export function hasSelfHarmLanguage(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  const term = /(suicid\w*|self-?\s?harm|harm (?:him|her|them)self|hurt (?:him|her|them)self|kill (?:him|her|them)self|end (?:his|her|their|its|it all|it)\b.{0,6}life|ending it|not worth living|isn'?t worth living|no longer wants? to live|wants? to die|better off dead)/g;
+  for (const m of t.matchAll(term)) {
+    const idx = m.index ?? 0;
+    const boundary = Math.max(t.lastIndexOf(",", idx - 1), t.lastIndexOf(";", idx - 1), t.lastIndexOf(" but ", idx - 1));
+    const clause = t.slice(boundary < 0 ? 0 : boundary, idx);
+    if (/\b(no|not|without|denies|denied|never|no talk of|no thoughts? of)\b/.test(clause)) continue;
+    return true;
+  }
+  return false;
 }
 
 /** Normalise a model-emitted classification to a table key (trim, collapse whitespace, upper-case). The
@@ -643,6 +676,21 @@ export function reconcileDiarrhoea(classification: string, caseText: string, dan
     return "SOME DEHYDRATION";
   }
   return classification;
+}
+
+/**
+ * Deterministic WHO ear rule: a tender/boggy swelling behind the ear (often pushing the ear forward)
+ * is MASTOIDITIS and must be referred, regardless of an accompanying fever. Without this, the fever
+ * pulls the 1.7B model to a febrile class (the mastoiditis→very-severe-febrile misroute). "An ear
+ * problem stays an ear problem even with fever." Wins over whatever class the model picked.
+ */
+export function reconcileEar(classification: string, caseText: string): string {
+  const t = caseText.toLowerCase();
+  const behindEar = /behind (?:the )?(?:right |left )?ear|over the mastoid|mastoid (?:area|process|region)/.test(t);
+  const swelling = /(swelling|swollen|boggy|lump|bulg|tender|abscess)/.test(t);
+  const pushingEar = /ear (?:is )?(?:being )?push(?:ed|ing)? (?:forward|out|down)|push(?:ed|ing)? (?:the )?ear (?:forward|out)/.test(t);
+  const mastoid = /\bmastoid/.test(t) || (behindEar && swelling) || pushingEar;
+  return mastoid ? "MASTOIDITIS" : classification;
 }
 
 /**
