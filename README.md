@@ -22,7 +22,7 @@ Triage-0 is built for the QVAC "Unleash Edge AI" hackathon, where all inference 
 
 ## Demo video
 
-A ~3-minute walkthrough on the M1, with the performance numbers and the offline badge on screen: **[watch the demo](REPLACE_WITH_YOUTUBE_UNLISTED_LINK)**.
+A ~3-minute walkthrough on the M1, with the performance numbers and the offline badge on screen: **[watch the demo](https://www.youtube.com/watch?v=Ws2Me2chnqY)**.
 
 It runs five real cases end to end (severe pneumonia, severe anaemia, dysentery, an out-of-scope abstain) and shows the on-device, offline guarantee.
 
@@ -33,6 +33,8 @@ It runs five real cases end to end (severe pneumonia, severe anaemia, dysentery,
 A community health worker in a low-resource clinic often has no reliable internet and no doctor on call. Triage-0 puts a protocol-grounded second opinion on the laptop they already have. Speak or type a case. The tool retrieves the relevant WHO guidance, reasons over it with a medical language model, and shows a severity classification and a management plan where every line is a verbatim citation from a real WHO chart.
 
 It runs on a MacBook Pro M1 with 8 GB of RAM. A 1.3 GB model does the reasoning. MedPsy-1.7B's published evaluation scores 62.62 against Google MedGemma-1.5-4B's 51.20, at under half the size. Every run writes a performance row (time-to-first-token, tokens per second, model load and unload) to an auditable log, so the numbers come with evidence rather than a screenshot.
+
+![Triage-0 returning a severity card and dose-specific WHO management plan, with on-device performance numbers](docs/images/app.png)
 
 ---
 
