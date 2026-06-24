@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { config } from "../../src/config.js";
-import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
+import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, reconcileJaundice, reconcileSubstance, isPersistentDiarrhoea, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
 
 const mapPath = config.citationMapPath;
 const dosePath = new URL("../../data/rag/dose-tables.txt", import.meta.url).pathname;
@@ -184,4 +184,19 @@ test("out-of-scope guard: adult cardiac chest pain abstains; paediatric respirat
   assert.deepEqual(cardiac, ["UNKNOWN"], "adult cardiac chest pain must abstain (out of paediatric+mhGAP scope)");
   const paed = allowedClassesFor("5 year old, cough and fast breathing, chest indrawing");
   assert.ok(paed.includes("PNEUMONIA"), "a child's chest indrawing must still surface the respiratory classes");
+});
+
+test("encoded rarer conditions: persistent diarrhoea, jaundice, substance-use reconciles", () => {
+  // persistent diarrhoea (>=14 days) vs acute
+  assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "loose stools for 3 weeks, no blood", false), "PERSISTENT DIARRHOEA");
+  assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "diarrhoea for 18 days, lethargic, very sunken eyes", true), "SEVERE PERSISTENT DIARRHOEA");
+  assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "loose stools for 2 days", false), "SOME DEHYDRATION");
+  assert.ok(isPersistentDiarrhoea("watery diarrhoea for over two weeks"));
+  assert.ok(!isPersistentDiarrhoea("cough for 14 days")); // not a diarrhoea context
+  // jaundice severity (negation-safe)
+  assert.equal(reconcileJaundice("JAUNDICE", "infant, yellow eyes with yellow palms and soles"), "SEVERE JAUNDICE");
+  assert.equal(reconcileJaundice("JAUNDICE", "5 day old, yellow eyes, palms and soles not yellow"), "JAUNDICE");
+  // substance-use dependence pin
+  assert.equal(reconcileSubstance("BIPOLAR DISORDER", "drinking alcohol heavily every day, cannot cut down, withdrawal shakes"), "DISORDERS DUE TO SUBSTANCE USE");
+  assert.equal(reconcileSubstance("DEPRESSION", "low mood, mother drinks alcohol occasionally"), "DEPRESSION");
 });

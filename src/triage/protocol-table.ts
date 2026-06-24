@@ -338,6 +338,67 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     follow_up_detail: FU_DANGER,
     referral: null,
   },
+  "PERSISTENT DIARRHOEA": {
+    protocol: "IMCI",
+    colour: "YELLOW",
+    severity: "URGENT",
+    action: { text: "Advise the mother on feeding a child who has PERSISTENT DIARRHOEA", page: 7 },
+    citation: { text: "PERSISTENT DIARRHOEA Advise the mother on feeding a child who has PERSISTENT DIARRHOEA", page: 7 },
+    medicines: [],
+    supportive: [{ text: "Give multivitamins and minerals (including zinc) for 14 days", page: 7 }],
+    home_care: [{ text: "If still breastfeeding, give more frequent, longer breastfeeds, day and night.", page: 41 }],
+    return_now: [...RETURN_ANY, ...RETURN_DIARRHOEA],
+    follow_up: { text: "Follow-up in 5 days", page: 7 },
+    follow_up_detail: FU_DANGER,
+    referral: null,
+  },
+  "SEVERE PERSISTENT DIARRHOEA": {
+    protocol: "IMCI",
+    colour: "PINK",
+    severity: "EMERGENCY",
+    action: { text: "Treat dehydration before referral unless the child has another severe classification", page: 7 },
+    citation: { text: "SEVERE PERSISTENT DIARRHOEA Treat dehydration before referral unless the child has another severe classification Refer to hospital", page: 7 },
+    medicines: [],
+    supportive: [],
+    home_care: [],
+    return_now: [...RETURN_ANY],
+    follow_up: null,
+    follow_up_detail: null,
+    referral: { text: "Refer to hospital", page: 7 },
+  },
+
+  // ── IMCI: young infant — jaundice ─────────────────────────────────────────────────
+  "SEVERE JAUNDICE": {
+    protocol: "IMCI",
+    colour: "PINK",
+    severity: "EMERGENCY",
+    action: { text: "Refer URGENTLY to hospital", page: 46 },
+    citation: { text: "SEVERE JAUNDICE Treat to prevent low blood sugar Refer URGENTLY to hospital", page: 46 },
+    medicines: [],
+    supportive: [
+      { text: "Treat to prevent low blood sugar", page: 46 },
+      { text: "Advise mother how to keep the infant warm on the way to the hospital", page: 46 },
+    ],
+    home_care: [],
+    return_now: [],
+    follow_up: null,
+    follow_up_detail: null,
+    referral: { text: "Refer URGENTLY to hospital", page: 46 },
+  },
+  JAUNDICE: {
+    protocol: "IMCI",
+    colour: "YELLOW",
+    severity: "URGENT",
+    action: { text: "Advise the mother to give home care for the young infant", page: 46 },
+    citation: { text: "Jaundice appearing after 24 hours of age and Palms and soles not yellow", page: 46 },
+    medicines: [],
+    supportive: [{ text: "Advise mother to return immediately if palms and soles appear yellow", page: 46 }],
+    home_care: [{ text: "Give only breastfeeds to the young infant.", page: 55 }],
+    return_now: [{ text: "Advise mother to return immediately if palms and soles appear yellow", page: 46 }],
+    follow_up: { text: "Follow-up in 1 day", page: 46 },
+    follow_up_detail: null,
+    referral: { text: "If the young infant is older than 14 days, refer to a hospital for assessment", page: 46 },
+  },
 
   // ── IMCI: ear ────────────────────────────────────────────────────────────────────
   MASTOIDITIS: {
@@ -517,6 +578,51 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     follow_up: null,
     referral: { text: "CONSULT A SPECIALIST", page: 34 },
   },
+  "BIPOLAR DISORDER": {
+    protocol: "mhGAP",
+    colour: null,
+    severity: "URGENT",
+    action: { text: "Provide psychoeducation to the person and carers.", page: 46 },
+    citation: { text: "Provide psychoeducation to the person and carers.", page: 46 },
+    medicines: [],
+    supportive: [
+      { text: "Reduce stress and strengthen social supports.", page: 46 },
+      { text: "Ensure safety of the person and safety of others.", page: 46 },
+    ],
+    home_care: [],
+    return_now: [],
+    follow_up: { text: "schedule a follow-up appointment", page: 21 },
+    referral: { text: "CONSULT A SPECIALIST", page: 34 },
+  },
+  DEMENTIA: {
+    protocol: "mhGAP",
+    colour: null,
+    severity: "URGENT",
+    action: { text: "Provide training and support in specific skills", page: 110 },
+    citation: { text: "Provide training and support in specific skills", page: 110 },
+    medicines: [],
+    supportive: [{ text: "Consider providing practical support when feasible", page: 110 }],
+    home_care: [],
+    return_now: [],
+    follow_up: { text: "schedule a follow-up appointment", page: 21 },
+    referral: { text: "CONSULT A SPECIALIST", page: 34 },
+  },
+  "DISORDERS DUE TO SUBSTANCE USE": {
+    protocol: "mhGAP",
+    colour: null,
+    severity: "URGENT",
+    action: { text: "Provide information and education about disorders due to substance use.", page: 132 },
+    citation: { text: "Provide information and education about disorders due to substance use.", page: 132 },
+    medicines: [],
+    supportive: [
+      { text: "Offer an assessment of their personal, social, and mental health needs.", page: 132 },
+      { text: "Encourage the person not to keep substances at home.", page: 132 },
+    ],
+    home_care: [],
+    return_now: [],
+    follow_up: { text: "schedule a follow-up appointment", page: 21 },
+    referral: { text: "CONSULT A SPECIALIST", page: 34 },
+  },
 };
 
 /** The exact classification strings the model may emit (enum-constrained in schema.ts), plus the
@@ -534,6 +640,10 @@ export const CLASSIFICATION_ENUM: string[] = [
   "SOME DEHYDRATION",
   "NO DEHYDRATION",
   "DYSENTERY",
+  "PERSISTENT DIARRHOEA",
+  "SEVERE PERSISTENT DIARRHOEA",
+  "SEVERE JAUNDICE",
+  "JAUNDICE",
   "MASTOIDITIS",
   "ACUTE EAR INFECTION",
   "CHRONIC EAR INFECTION",
@@ -563,8 +673,9 @@ export const CLASSIFICATION_ENUM: string[] = [
 const SYMPTOM_CLASSES: { test: RegExp; classes: string[] }[] = [
   { test: /cough|breath|indrawing|stridor|wheez|pneumonia|\bchest\b|cyanos|grunt/i, classes: ["SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "PNEUMONIA", "COUGH OR COLD"] },
   { test: /fever|febrile|malaria|temperature|\bhot\b|stiff neck/i, classes: ["VERY SEVERE FEBRILE DISEASE", "MALARIA", "FEVER: NO MALARIA"] },
-  { test: /diarrh|loose stool|watery stool|\bstools?\b|\bmotions?\b|dehydrat|skin pinch|sunken|\bORS\b|runny poo|\bblood\b|bloody|\bdysentery\b/i, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "DYSENTERY"] },
+  { test: /diarrh|loose stool|watery stool|\bstools?\b|\bmotions?\b|dehydrat|skin pinch|sunken|\bORS\b|runny poo|\bblood\b|bloody|\bdysentery\b|persistent|chronic/i, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "DYSENTERY", "PERSISTENT DIARRHOEA", "SEVERE PERSISTENT DIARRHOEA"] },
   { test: /\bear\b|mastoid|behind the ear/i, classes: ["MASTOIDITIS", "ACUTE EAR INFECTION", "CHRONIC EAR INFECTION"] },
+  { test: /jaundice|yellow (?:eyes|skin|palms|soles)|whites of (?:the )?eyes[^.]{0,12}yellow|skin[^.]{0,8}yellow/i, classes: ["SEVERE JAUNDICE", "JAUNDICE"] },
   { test: /pallor|\bpale\b|an[ae]mia/i, classes: ["SEVERE ANAEMIA", "ANAEMIA"] },
   // Malnutrition needs an anthropometric/oedema sign (wasting, low MUAC, swollen feet) — NOT just poor
   // appetite ("not eating" collides with depression and any acute illness, so it is deliberately excluded).
@@ -673,6 +784,18 @@ export function reconcileMalaria(classification: string, caseText: string): stri
   return malariaRisk && !negated ? "MALARIA" : classification;
 }
 
+/** Diarrhoea lasting 14 days or more (by explicit count, "persistent"/"chronic", or a weeks/month
+ *  duration) in a diarrhoea context. WHO classifies this as PERSISTENT DIARRHOEA, distinct from acute
+ *  dehydration. Used by reconcileDiarrhoea to pin the duration boundary the 1.7B model is unreliable on. */
+export function isPersistentDiarrhoea(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  const diarrhoea = /diarrh|loose stool|watery stool|\bstools?\b|\bmotions?\b|loose motion|runny poo/.test(t);
+  if (!diarrhoea) return false;
+  if (/\bpersistent\b|\bchronic\b|fortnight|for (?:about |over |more than )?(?:two|three|four|2|3|4|several|many) weeks|for weeks|past (?:two|three|four|2|3|4) weeks|for (?:about |over |more than )?(?:a|1|one) month|for months/.test(t)) return true;
+  const m = t.match(/(\d+)\s*days?/);
+  return m ? parseInt(m[1], 10) >= 14 : false;
+}
+
 /**
  * Deterministic WHO diarrhoea guards (the model is unstable on diarrhoea severity + misses blood):
  *  (a) Blood in the stool → DYSENTERY (WHO classifies bloody diarrhoea as dysentery — it needs an
@@ -687,6 +810,13 @@ export function reconcileDiarrhoea(classification: string, caseText: string, dan
   const norm = normalizeClassification(classification);
   const isDehydration = norm === "SEVERE DEHYDRATION" || norm === "SOME DEHYDRATION" || norm === "NO DEHYDRATION";
   if (isDehydration && hasBloodInStool(caseText)) return "DYSENTERY";
+  // Persistent diarrhoea: diarrhoea lasting 14 days or more is its own classification (feeding support +
+  // multivitamins/zinc), not acute dehydration. Blood still wins (dysentery needs an antibiotic). With a
+  // danger sign or severe dehydration it is the PINK SEVERE PERSISTENT DIARRHOEA (refer).
+  if (norm !== "DYSENTERY" && !hasBloodInStool(caseText) && isPersistentDiarrhoea(caseText)) {
+    const severe = dangerSignPresent || /very (?:slow|sunken)|severe dehydration|skin pinch.{0,15}very/i.test(caseText);
+    return severe ? "SEVERE PERSISTENT DIARRHOEA" : "PERSISTENT DIARRHOEA";
+  }
   if (norm === "SEVERE DEHYDRATION" && !dangerSignPresent &&
       !/very (?:slow|sunken)|unconscious|lethargic|not able to drink|unable to drink|skin pinch.{0,15}very/i.test(caseText)) {
     return "SOME DEHYDRATION";
@@ -700,6 +830,28 @@ export function reconcileDiarrhoea(classification: string, caseText: string, dan
  * pulls the 1.7B model to a febrile class (the mastoiditis→very-severe-febrile misroute). "An ear
  * problem stays an ear problem even with fever." Wins over whatever class the model picked.
  */
+/** WHO young-infant jaundice severity pin: yellow palms/soles, or jaundice in the first 24 hours / since
+ *  birth, is SEVERE JAUNDICE (refer urgently). The model is unreliable at this age/sign boundary. */
+/** Substance-use dependence pin: alcohol/drug use PLUS a dependence/withdrawal marker is DISORDERS DUE
+ *  TO SUBSTANCE USE. The 1.7B model is flaky here (a clear alcohol-dependence case sometimes lands on
+ *  bipolar). Requires BOTH an agent and a dependence marker, so ordinary mentions ("mother drinks
+ *  occasionally") do not trip it. */
+export function reconcileSubstance(classification: string, caseText: string): string {
+  const t = caseText.toLowerCase();
+  const agent = /\balcohol\b|drinking|drink (?:heavily|a lot)|\bdrugs?\b|drug use|heroin|cannabis|opioid|cocaine|\bsubstance\b|injecting/.test(t);
+  const dependence = /every day|daily|heavily|cannot cut down|can'?t cut down|cannot stop|can'?t stop|withdrawal|the shakes|shaky.{0,12}morning|dependen|addicted|craving|overdose|relapse|black ?out/.test(t);
+  return agent && dependence ? "DISORDERS DUE TO SUBSTANCE USE" : classification;
+}
+
+export function reconcileJaundice(classification: string, caseText: string): string {
+  const t = caseText.toLowerCase();
+  if (!/jaundice|yellow (?:eyes|skin|palms|soles)|(?:eyes|skin|palms|soles)[^.]{0,18}yellow/.test(t)) return classification;
+  // Note: match whole non-negated phrases — "palms and soles NOT yellow" is the YELLOW (mild) sign and
+  // must not trip the severe branch, so no greedy gap between "soles" and "yellow".
+  const severe = /yellow palms|yellow soles|palms and soles (?:are )?yellow|soles (?:are )?yellow|(?:less than|under|within)\s*24\s*hours|first day of life|day 1 of life|since birth|appeared[^.]{0,24}first day|in the first 24/.test(t);
+  return severe ? "SEVERE JAUNDICE" : classification;
+}
+
 export function reconcileEar(classification: string, caseText: string): string {
   const t = caseText.toLowerCase();
   const behindEar = /behind (?:the )?(?:right |left )?ear|over the mastoid|mastoid (?:area|process|region)/.test(t);
@@ -749,6 +901,10 @@ const CLASS_REASONING: Record<string, string> = {
   "SOME DEHYDRATION": "Two or more of restless/irritable, sunken eyes, drinks eagerly, slow skin pinch → some dehydration; Plan B (ORS) and zinc.",
   "NO DEHYDRATION": "Diarrhoea without enough signs for some or severe dehydration → no dehydration; Plan A home fluids and zinc.",
   "DYSENTERY": "Blood in the stool → WHO classifies bloody diarrhoea as dysentery, which needs an antibiotic, not fluids alone.",
+  "PERSISTENT DIARRHOEA": "Diarrhoea lasting 14 days or more → persistent diarrhoea; feeding support plus multivitamins and zinc, not just fluids.",
+  "SEVERE PERSISTENT DIARRHOEA": "Persistent diarrhoea (14+ days) with dehydration or a danger sign → severe; treat the dehydration and refer.",
+  "SEVERE JAUNDICE": "Yellow palms/soles, or jaundice in the first 24 hours of life → severe; treat for low blood sugar and refer urgently.",
+  "JAUNDICE": "Jaundice appearing after 24 hours with palms and soles not yellow → home care, return if palms/soles turn yellow, refer if older than 14 days.",
   "MASTOIDITIS": "Tender swelling behind the ear → mastoiditis; refer urgently (an ear problem stays an ear problem even with fever).",
   "ACUTE EAR INFECTION": "Ear pain or discharge for under 14 days → acute ear infection; oral amoxicillin.",
   "CHRONIC EAR INFECTION": "Ear discharge for 14 days or more → chronic ear infection; keep the ear dry by wicking.",
@@ -759,6 +915,9 @@ const CLASS_REASONING: Record<string, string> = {
   "DEPRESSION": "Persistent low mood or loss of interest for two weeks or more, without imminent self-harm → depression; psychoeducation and follow-up.",
   "PSYCHOSIS": "Delusions, hallucinations, or disorganised behaviour → psychosis; start an antipsychotic and consult/refer.",
   "EPILEPSY": "Recurrent unprovoked seizures with normal recovery in between → epilepsy; start an anti-seizure medicine.",
+  "BIPOLAR DISORDER": "Episodes of mania and depression → bipolar disorder; psychoeducation, keep the person safe, and consult a specialist (never an antidepressant alone).",
+  "DEMENTIA": "Progressive memory and functioning decline → dementia; carer training and practical support, manage other conditions, and consult a specialist.",
+  "DISORDERS DUE TO SUBSTANCE USE": "Harmful alcohol or drug use → psychoeducation, assess needs, reduce access, and consult a specialist.",
   "SELF-HARM / SUICIDE": "Thoughts, a plan, or an act of self-harm → do not leave the person alone; remove access to means and consult urgently.",
 };
 

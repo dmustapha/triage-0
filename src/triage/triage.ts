@@ -29,6 +29,8 @@ import {
   reconcileMalaria,
   reconcileDiarrhoea,
   reconcileEar,
+  reconcileJaundice,
+  reconcileSubstance,
   hasBloodInStool,
   deterministicReasoning,
   CLASSIFICATION_ENUM,
@@ -275,6 +277,8 @@ export async function triageFromHits(
       cls = reconcileDiarrhoea(cls, caseText, hasEmergencySign(caseText, ex.red_flags));
       if (bloodStool) cls = "DYSENTERY";
       cls = reconcileEar(cls, caseText); // an ear problem stays an ear problem even with fever
+      cls = reconcileJaundice(cls, caseText); // yellow palms/soles or <24h → SEVERE JAUNDICE
+      cls = reconcileSubstance(cls, caseText); // alcohol/drug + dependence marker → substance use
       let entry = lookupProtocol(cls);
       const severity = entry
         ? finalizeSeverityV2(cls, ex.action, caseText, ex.red_flags)
