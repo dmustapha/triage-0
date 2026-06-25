@@ -352,4 +352,19 @@
       st.textContent = "Could not read that aloud.";
     }
   }
+
+  // Test hook (browser-safe: `module` is undefined in the browser, so this is a no-op there and the
+  // app wiring above runs unchanged). Lets jsdom unit tests exercise the pure render/parse logic.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      esc: esc,
+      renderCitation: renderCitation,
+      renderCard: renderCard,
+      renderPlan: renderPlan,
+      doseTable: doseTable,
+      handleEvent: handleEvent,
+      shortDoc: shortDoc,
+      citeMini: citeMini,
+    };
+  }
 })();
