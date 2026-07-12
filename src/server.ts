@@ -55,7 +55,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
 }
-const TRIAGE_TIMEOUT_MS = 90_000;
+const TRIAGE_TIMEOUT_MS = 300_000; // 5 min — 4B model on CPU needs headroom
 const VOICE_TIMEOUT_MS = 30_000;
 
 /** Log the real error server-side (stderr only) and return a fixed, friendly message — never leak an
