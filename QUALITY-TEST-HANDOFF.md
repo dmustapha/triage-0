@@ -131,25 +131,28 @@ Does the app resist adversarial inputs?
 
 4. **Age handling** — the prompt includes age but the protocol table doesn't use it for routing. Does the model correctly handle neonate vs child vs adult?
 
-## How to run
+## How to run — automated quality gate
+
+Create a file `tests/quality/clinical-quality.test.ts` that:
+1. Starts the dev server (`MODEL_ID=4b PORT=5050 npm start &`, wait for health OK)
+2. Defines all test cases with expected classification, severity, and plan components
+3. Sends each case via `curl -sN -X POST http://localhost:5050/triage`
+4. Parses the SSE output to extract classification, severity, and plan
+5. Asserts against expected values
+6. Produces a pass/fail report with percentages
 
 ```bash
 cd /Users/MAC/triage-0
 
-# Ensure server is running with model loaded
+# Start server
 MODEL_ID=4b REASON_PREDICT=2048 PORT=5050 npm start &
+# Wait for: curl -s http://localhost:5050/health | jq .residentModels
+# Must show ["embeddings","medpsy"]
 
-# Run a single test case
-curl -sN -X POST http://localhost:5050/triage \
-  -H "Content-Type: application/json" \
-  -d '{"caseText":"2-year-old, cough for 3 days..."}' \
-  -o /tmp/case-output.txt
+# Run quality gate
+node --import tsx --test --test-concurrency=1 tests/quality/clinical-quality.test.ts
 
-# Parse the output for classification, severity, plan
-cat /tmp/case-output.txt | grep "event: card" -A1
-cat /tmp/case-output.txt | grep "event: plan" -A1
-
-# Run the full integration test suite (needs model)
+# Also run existing integration tests
 node --import tsx --test --test-concurrency=1 \
   tests/integration/triage.test.ts \
   tests/integration/server.test.ts \
@@ -157,6 +160,22 @@ node --import tsx --test --test-concurrency=1 \
   tests/integration/citation-integrity.test.ts \
   tests/integration/grounding.test.ts
 ```
+
+The quality test script should parse SSE output like:
+```
+event: card
+data: {"severity":"URGENT","classification":"PNEUMONIA",...}
+
+event: plan
+data: {"plan":{"medicines":[...],"supportive":[...],...}}
+```
+
+And assert:
+- `card.severity === expected.severity`
+- `card.classification.includes(expected.classification)` (tolerant matching)
+- `plan.medicines.length > 0` for non-ROUTINE cases
+- `plan.supportive.length > 0`
+- No fabricated citations (page numbers match protocol table)
 
 ## Files to reference
 
