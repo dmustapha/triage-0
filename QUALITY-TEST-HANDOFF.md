@@ -131,51 +131,109 @@ Does the app resist adversarial inputs?
 
 4. **Age handling** — the prompt includes age but the protocol table doesn't use it for routing. Does the model correctly handle neonate vs child vs adult?
 
-## How to run — automated quality gate
+## How to run — Playwright against the actual frontend
 
-Create a file `tests/quality/clinical-quality.test.ts` that:
-1. Starts the dev server (`MODEL_ID=4b PORT=5050 npm start &`, wait for health OK)
-2. Defines all test cases with expected classification, severity, and plan components
-3. Sends each case via `curl -sN -X POST http://localhost:5050/triage`
-4. Parses the SSE output to extract classification, severity, and plan
-5. Asserts against expected values
-6. Produces a pass/fail report with percentages
+Create a file `tests/quality/clinical-quality.spec.ts` that uses Playwright to:
+1. Start the dev server (`MODEL_ID=4b PORT=5050 npm start &`, wait for health OK with `residentModels: ["embeddings","medpsy"]`)
+2. Open `http://localhost:5050/app` in a headless browser
+3. For each test case: type into `#case` textarea, click `#assess`, wait for SSE to render the card, read the DOM
+4. Assert against expected classification, severity, and plan components
+5. Produce a pass/fail report
 
 ```bash
 cd /Users/MAC/triage-0
 
 # Start server
 MODEL_ID=4b REASON_PREDICT=2048 PORT=5050 npm start &
-# Wait for: curl -s http://localhost:5050/health | jq .residentModels
-# Must show ["embeddings","medpsy"]
+curl -s http://localhost:5050/health  # wait for models loaded
 
-# Run quality gate
-node --import tsx --test --test-concurrency=1 tests/quality/clinical-quality.test.ts
-
-# Also run existing integration tests
-node --import tsx --test --test-concurrency=1 \
-  tests/integration/triage.test.ts \
-  tests/integration/server.test.ts \
-  tests/integration/sse-contract.test.ts \
-  tests/integration/citation-integrity.test.ts \
-  tests/integration/grounding.test.ts
+# Run Playwright quality gate
+npx playwright test tests/quality/clinical-quality.spec.ts
 ```
 
-The quality test script should parse SSE output like:
-```
-event: card
-data: {"severity":"URGENT","classification":"PNEUMONIA",...}
+### Playwright test structure
 
-event: plan
-data: {"plan":{"medicines":[...],"supportive":[...],...}}
+```typescript
+import { test, expect } from "@playwright/test";
+
+const BASE = "http://localhost:5050";
+
+// Wait for server ready
+test.beforeAll(async () => {
+  // poll /health until residentModels includes medpsy
+});
+
+const cases = [
+  {
+    name: "R1 — pneumonia home treatment",
+    input: "2-year-old, cough for 3 days, chest indrawing, breathing 52 a minute, alert and drinking, no danger signs.",
+    expectedSeverity: "URGENT",
+    expectedClassification: "PNEUMONIA",
+    shouldHaveMeds: true,
+    shouldHavePlan: true,
+  },
+  // ... all 30 cases
+];
+
+for (const c of cases) {
+  test(c.name, async ({ page }) => {
+    await page.goto(`${BASE}/app`);
+    await page.fill("#case", c.input);
+    await page.click("#assess");
+
+    // Wait for card to render
+    await page.waitForSelector("#card:not(.hidden)", { timeout: 120000 });
+    await page.waitForSelector("#planWrap:not(.plan-pending)", { timeout: 60000 });
+
+    // Read severity from the badge
+    const severity = await page.textContent(".sev");
+    expect(severity?.trim()).toBe(c.expectedSeverity);
+
+    // Read classification
+    const classification = await page.textContent(".dx-name");
+    if (c.expectedClassification) {
+      expect(classification?.trim().toUpperCase()).toContain(c.expectedClassification);
+    }
+
+    // Plan should have medicines for non-ROUTINE
+    if (c.shouldHaveMeds) {
+      const meds = await page.$$(".med-name");
+      expect(meds.length).toBeGreaterThan(0);
+    }
+
+    // Citation should be present
+    const citation = await page.textContent("#citationBox");
+    expect(citation).toBeTruthy();
+    expect(citation).toContain("WHO");
+  });
+}
 ```
 
-And assert:
-- `card.severity === expected.severity`
-- `card.classification.includes(expected.classification)` (tolerant matching)
-- `plan.medicines.length > 0` for non-ROUTINE cases
-- `plan.supportive.length > 0`
-- No fabricated citations (page numbers match protocol table)
+### What the DOM selectors map to
+
+| What | Selector | Example |
+|------|----------|---------|
+| Severity badge | `.sev` | `URGENT` |
+| Classification | `.dx-name` | `PNEUMONIA` |
+| Action | `.action` | `Give oral Amoxicillin...` |
+| Medicines | `.med-name` | `Amoxicillin` |
+| Dose table | `.dose` | weight-band rows |
+| Citation | `#citationBox` | `WHO IMCI Chart Booklet...` |
+| Plan | `#planWrap` | Management plan section |
+| Error | `#err` | Error message |
+| Perf numbers | `#hTtft, #hTps, #hDev` | `25.5 s`, `12.79`, `cpu` |
+
+### What to assert per test case
+
+1. **Citation arrives first** — `#citationBox` visible before `#card`
+2. **Severity correct** — `.sev` text matches expected band
+3. **Classification matches** — `.dx-name` contains expected IMCI/mhGAP category
+4. **Plan renders** — `#planWrap` not empty, medicines present for non-ROUTINE
+5. **Perf populated** — `#hTtft` is not `·`
+6. **No error** — `#err` is empty/hidden
+7. **Abstain cases** — `.sev` shows `UNKNOWN`, no plan rendered
+8. **CSP header** — `response.headers["content-security-policy"]` exists
+9. **Offline badge** — shows connectivity status
 
 ## Files to reference
 
