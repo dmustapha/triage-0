@@ -25,6 +25,7 @@ import { chunkCount, citationMapHealthy } from "./rag/store.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+
 /** Max characters accepted for a triage case. A real IMCI/mhGAP case is a few sentences; this keeps the
  *  input well under the embedding model's 512-token context and the reasoning model's window. */
 const MAX_CASE_CHARS = 2000;
@@ -66,6 +67,16 @@ function clientError(res: Response, err: unknown, message: string, code = 500): 
 
 export const app = express();
 app.use(express.json({ limit: "256kb" }));
+
+// Content-Security-Policy: must precede express.static so headers apply to all responses.
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self'; img-src 'self' data:; font-src 'self'",
+  );
+  next();
+});
+
 app.use(express.static(resolve(process.cwd(), "public")));
 
 // Clean URL for the tool. The landing is "/" (public/index.html, served by static above); the tool

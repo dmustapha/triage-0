@@ -65,7 +65,12 @@ class Orchestrator {
     if (keepsResident(role)) return;
     const r = this.residents.get(role);
     if (!r) return;
-    await unloadModelTimed(r.modelId, role, phase);
+    try {
+      await unloadModelTimed(r.modelId, role, phase);
+    } catch {
+      // Unload failed (e.g. GPU freed externally) — still remove stale entry
+      // so later ensure() re-loads instead of returning a dead modelId.
+    }
     this.residents.delete(role);
   }
 

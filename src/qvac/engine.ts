@@ -34,6 +34,15 @@ function approxTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+/** Guard numeric stats — NaN/Infinity values must never enter the perf log or audit trail. */
+function safeNum(v: number | undefined | null): number {
+  return Number.isFinite(v) ? (v as number) : 0;
+}
+
+function safeRound(v: number | undefined | null): number {
+  return Math.round(safeNum(v));
+}
+
 export async function loadModelTimed(
   spec: ModelSpec,
   phase: string,
@@ -116,14 +125,17 @@ export async function completionTimed(args: {
   logPerf({
     ts: new Date().toISOString(),
     phase: args.phase, event: "completion", modelId: args.modelId,
-    // Prefer the addon's real prompt-token count; fall back to a char/4 estimate (DEV-007).
-    promptTokens: stats.promptTokens ?? approxTokens(args.history.map((m) => m.content).join(" ")),
-    ttftMs: Math.round(stats.timeToFirstToken),
-    tokensPerSec: Number(stats.tokensPerSecond?.toFixed?.(2) ?? stats.tokensPerSecond),
-    // Native field is `generatedTokens`; `totalTokens` was always undefined at runtime (DEV-007).
-    totalTokens: stats.generatedTokens ?? stats.totalTokens,
-    backendDevice: stats.backendDevice,
-    durationMs: Math.round(durationMs),
+    // Prefer the addon's real prompt-token count; fall back to a char/4 estimate.
+    // `safeNum` returns 0 for NaN/undefined, so `||` (not `??`) is correct here:
+    // a zero return means "unknown" and should fall through to the estimate (DEV-007).
+    promptTokens: safeNum(stats.promptTokens) || approxTokens(args.history.map((m) => m.content).join(" ")),
+    ttftMs: safeRound(stats.timeToFirstToken),
+    tokensPerSec: safeNum(stats.tokensPerSecond) ? Number((stats.tokensPerSecond as number).toFixed(2)) : 0,
+    // Native field is `generatedTokens`; `totalTokens` was always undefined at runtime. Same `||` logic:
+    // zero means unknown → try the fallback field (DEV-007).
+    totalTokens: safeNum(stats.generatedTokens) || safeNum(stats.totalTokens),
+    backendDevice: stats.backendDevice ?? "unknown",
+    durationMs: safeRound(durationMs),
   });
 
   return { text: finalText, toolCalls, stats };
@@ -208,6 +220,7 @@ const MAX_CHUNK_CHARS = 700;
 
 function hardSplit(s: string, max = MAX_CHUNK_CHARS, overlap = 150): string[] {
   if (s.length <= max) return [s];
+  if (overlap >= max) return [s]; // guard: overlap ≥ max would prevent forward progress (infinite loop)
   const out: string[] = [];
   let i = 0;
   while (i < s.length) {
