@@ -11,7 +11,7 @@
  */
 import { test, expect } from "@playwright/test";
 
-const BASE = "http://localhost:5062";
+const BASE = "http://localhost:5063";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
