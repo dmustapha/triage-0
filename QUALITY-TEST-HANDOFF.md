@@ -7,9 +7,18 @@ v0.2.0 is committed. Infrastructure gates pass (100/100 tests, typecheck clean, 
 
 ## What this session needs to do
 
-**Run the app against a comprehensive clinical test suite and measure accuracy, then fix deficiencies.**
+**Run the app against a comprehensive clinical test suite and push it to a new quality level — not v1 parity, something far better.**
 
-This is NOT about infrastructure — it's about clinical quality. The v0.2.0 code changes (severity V2, NaN guards, try/catch) are solid. What hasn't been tested is whether the **model + RAG + protocol-table pipeline** produces clinically correct output.
+This is NOT about infrastructure — it's about clinical quality and ambition. The v0.2.0 code changes (severity V2, NaN guards, try/catch) are solid infrastructure. What we need now is to measure and improve the **model + RAG + protocol-table pipeline** against a high bar:
+
+- Classification accuracy across ALL IMCI/mhGAP categories
+- Severity correctness with the new V2 logic (table-driven, not heuristic)
+- Management plan completeness and clinical appropriateness
+- Graceful handling of edge cases, multi-conditions, and ambiguous presentations
+- Abstain precision — knowing what it can't handle
+- Real-world readiness — does this actually help a community health worker?
+
+**Goal: Identify every gap, fix every fixable one, and document what remains for v0.3.0.**
 
 ## Test dimensions
 
@@ -161,9 +170,11 @@ node --import tsx --test --test-concurrency=1 \
 
 ## Expected output
 
-A quality report with:
+A clinical quality audit with:
 1. Pass/fail per test case with actual vs expected classification, severity, plan
-2. Aggregate accuracy metrics (% correct classification, % correct severity)
-3. Root cause analysis for failures
-4. Fix plan for deficiencies found
-5. Updated handoff with results
+2. Aggregate accuracy metrics (% correct classification, % correct severity, % plan completeness)
+3. Gap analysis — where does the pipeline break down and why?
+4. Root cause for every failure (model quality? prompt design? token budget? retrieval threshold?)
+5. Fixes applied and re-tested
+6. Assessment of real-world readiness — would you trust this with a patient?
+7. Roadmap for v0.3.0 — what's still missing, what needs redesign
