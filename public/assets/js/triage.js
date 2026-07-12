@@ -16,12 +16,6 @@
     stop: '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
   };
 
-  var SEEDS = [
-    { label: "Child, cough and fast breathing", text: "2-year-old, cough for 3 days, chest indrawing, breathing 52 a minute, alert and drinking, no danger signs." },
-    { label: "Child, very unwell", text: "11-month-old, cough, now lethargic and unable to drink, breathing 60 a minute with chest indrawing and stridor while calm." },
-    { label: "Adult, low mood", text: "Adult with low mood, loss of interest, poor sleep and appetite for the past three weeks." }
-  ];
-
   var SEV_NOTE = {
     EMERGENCY: "Refer now",
     URGENT: "Treat now and follow up",
@@ -33,19 +27,6 @@
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
-  }
-
-  // ---- example chips ----
-  var seedsEl = $("seeds");
-  if (seedsEl) {
-    SEEDS.forEach(function (s) {
-      var b = document.createElement("button");
-      b.className = "chip";
-      b.type = "button";
-      b.textContent = s.label;
-      b.onclick = function () { $("case").value = s.text; $("case").focus(); };
-      seedsEl.appendChild(b);
     });
   }
 
