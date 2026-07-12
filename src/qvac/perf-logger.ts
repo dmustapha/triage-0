@@ -55,10 +55,15 @@ function rowToCsv(r: PerfLogRow): string {
  * whole-array JSON rewrite, which was O(n²) and dropped rows when calls interleaved.
  */
 export function logPerf(row: PerfLogRow): void {
-  const csv = csvPath();
-  if (!existsSync(csv)) writeFileSync(csv, HEADER, "utf8");
-  appendFileSync(csv, rowToCsv(row), "utf8");
-  appendFileSync(jsonlPath(), JSON.stringify(row) + "\n", "utf8");
+  try {
+    const csv = csvPath();
+    if (!existsSync(csv)) writeFileSync(csv, HEADER, "utf8");
+    appendFileSync(csv, rowToCsv(row), "utf8");
+    appendFileSync(jsonlPath(), JSON.stringify(row) + "\n", "utf8");
+  } catch {
+    // Disk error (ENOSPC, EACCES, etc.) — degrade gracefully.
+    // A full disk must not crash an in-progress clinical triage.
+  }
 }
 
 export function readPerfRows(): PerfLogRow[] {

@@ -3,7 +3,7 @@
 // that the model does NOT author (RECONCILE.md Phase-2), so it must be exhaustively tested here.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyToSeverity, hasEmergencySign, finalizeSeverity } from "../../src/triage/severity.js";
+import { classifyToSeverity, hasEmergencySign, finalizeSeverity, finalizeSeverityV2 } from "../../src/triage/severity.js";
 
 test("severe / danger-sign / refer-urgently -> EMERGENCY", () => {
   assert.equal(classifyToSeverity("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "give first dose of antibiotic, refer URGENTLY to hospital"), "EMERGENCY");
@@ -121,4 +121,233 @@ test("classifyToSeverity: a named treatable condition with counselling phrases i
   // genuinely mild / negated classes still band ROUTINE
   assert.equal(classifyToSeverity("COUGH OR COLD", "Soothe the throat, advise the mother, continue feeding."), "ROUTINE");
   assert.equal(classifyToSeverity("NO DEHYDRATION", "Give fluid and continue feeding (Plan A)."), "ROUTINE");
+});
+
+// ── finalizeSeverityV2 — the REDESIGN (Tier B) ──────────────────────────────────
+
+test("finalizeSeverityV2: table-encoded classification uses frozen severity (not heuristic)", () => {
+  // PNEUMONIA in the protocol table is YELLOW → URGENT, action is "give oral Amoxicillin for 5 days".
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral Amoxicillin for 5 days", "chest indrawing, breathing 52/min, alert, no danger signs", []),
+    "URGENT",
+  );
+  // COUGH OR COLD in the table is GREEN → ROUTINE.
+  assert.equal(
+    finalizeSeverityV2("COUGH OR COLD", "soothe the throat, advise the mother", "mild cough, no fever", []),
+    "ROUTINE",
+  );
+  // SEVERE PNEUMONIA OR VERY SEVERE DISEASE → EMERGENCY (PINK).
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "give first dose, refer urgently", "stridor, unable to drink, convulsions", ["convulsions"]),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: fallback to heuristic when classification is not table-encoded", () => {
+  // "SOME RARE CLASSIFICATION" is not in the table — falls back to classifyToSeverity.
+  assert.equal(
+    finalizeSeverityV2("SOME RARE CLASSIFICATION", "give ORS, follow up", "mild diarrhoea, alert", []),
+    "URGENT",
+  );
+  // Empty classification → URGENT (safe default from classifyToSeverity).
+  assert.equal(
+    finalizeSeverityV2("", "", "no real case", []),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2: danger sign ESCALATES any band to EMERGENCY (NEW)", () => {
+  // This is the key NEW behavior: a genuine danger sign overrides even a ROUTINE or URGENT table band.
+  // PNEUMONIA is URGENT in the table, but "unable to drink" is a danger sign → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral Amoxicillin for 5 days", "chest indrawing and unable to drink since morning", []),
+    "EMERGENCY",
+  );
+  // COUGH OR COLD is ROUTINE in the table, but convulsions → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("COUGH OR COLD", "soothe the throat", "mild cough but had convulsions this morning", []),
+    "EMERGENCY",
+  );
+  // mhGAP: DEPRESSION is URGENT, but suicide ideation is a danger sign → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("DEPRESSION", "psychoeducation, follow-up in 2 weeks", "low mood, says she wants to die, better off dead", []),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: downgrade pure pneumonia-sign EMERGENCY without danger → URGENT", () => {
+  // SEVERE PNEUMONIA is EMERGENCY in the table, but chest indrawing alone (no danger sign) → URGENT.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "give first dose, refer urgently", "chest indrawing, breathing 52/min, alert, drinking well", ["Chest indrawing"]),
+    "URGENT",
+  );
+  // With breathing rate explicitly stated.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", "fast breathing at 60 breaths per minute, alert, no danger signs", []),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2: non-pneumonia EMERGENCY without danger sign stays EMERGENCY", () => {
+  // SEVERE DEHYDRATION is EMERGENCY (table), no pneumonia sign, no danger sign → stays EMERGENCY.
+  // The downgrade guard only fires when a pneumonia sign IS present.
+  assert.equal(
+    finalizeSeverityV2("SEVERE DEHYDRATION", "Plan C, refer urgently", "sunken eyes, skin pinch very slow, no danger signs", []),
+    "EMERGENCY",
+  );
+  // SEVERE PERSISTENT DIARRHOEA is EMERGENCY in the table — no pneumonia signs → stays EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PERSISTENT DIARRHOEA", "refer urgently", "diarrhoea for 18 days, lethargic", []),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: danger sign outranks the downgrade — escalation wins", () => {
+  // A case that has BOTH a pneumonia sign AND a danger sign: escalation to EMERGENCY must win.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", "chest indrawing, now floppy and unable to drink", ["floppy"]),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: negation-safe — negated danger signs do NOT escalate", () => {
+  // "no convulsions" must NOT escalate to EMERGENCY. Table says PNEUMONIA → URGENT, stays URGENT.
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral Amoxicillin for 5 days", "chest indrawing, fever, no convulsions, alert and drinking", []),
+    "URGENT",
+  );
+  // "no thoughts of self-harm" must NOT escalate DEPRESSION from URGENT.
+  assert.equal(
+    finalizeSeverityV2("DEPRESSION", "psychoeducation", "low mood, poor sleep, no thoughts of self-harm", []),
+    "URGENT",
+  );
+});
+
+// ── finalizeSeverityV2 edge cases ─────────────────────────────────────────────
+
+test("finalizeSeverityV2: danger sign in redFlags escalates even when caseText alone wouldn't", () => {
+  // redFlags carry model-detected signs. A danger sign in redFlags but only mentioned
+  // obliquely in caseText must still escalate.
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral amoxicillin", "fever and cough for 3 days, chest indrawing", ["unable to drink"]),
+    "EMERGENCY",
+  );
+  // Non-danger redFlag does NOT escalate.
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral amoxicillin", "chest indrawing, alert", ["fever", "cough"]),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2: downgrade only fires when PNEUMONIA_SIGN_RE matches — not on other respiratory words", () => {
+  // "stridor" alone (without chest indrawing / fast breathing / breathing rate) is a danger sign,
+  // so it escalates. But if it were NOT a danger sign, it would not trigger the pneumonia downgrade.
+  // Test: cough alone is a respiratory word but NOT a pneumonia sign → no downgrade → stays EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", "persistent cough, fever, no danger signs", []),
+    "EMERGENCY", // stays EMERGENCY — cough ≠ pneumonia sign for downgrade purposes
+  );
+  // "wheezing" is respiratory but NOT a pneumonia sign → no downgrade → stays EMERGENCY.
+  // NOTE: must avoid "chest indrawing" even in negated form — PNEUMONIA_SIGN_RE is substring-based.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", "wheezing only, no respiratory distress, no danger signs", []),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: breathing rate formats all match PNEUMONIA_SIGN_RE", () => {
+  // Various ways breathing rates appear in case text — all must trigger the downgrade guard.
+  const formats = [
+    "breathing at 52",
+    "breathing 60/min",
+    "52 breaths per minute",
+    "60 bpm",
+    "RR 48/min",
+  ];
+  for (const fmt of formats) {
+    assert.equal(
+      finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", `${fmt}, alert, no danger signs`, []),
+      "URGENT",
+      `breathing format "${fmt}" must trigger pneumonia downgrade`,
+    );
+  }
+});
+
+test("finalizeSeverityV2: whitespace-normalised classification matches table key", () => {
+  // normalizeClassification trims and collapses whitespace — test that it works.
+  assert.equal(
+    finalizeSeverityV2("  PNEUMONIA  ", "give oral Amoxicillin", "chest indrawing, no danger signs", []),
+    "URGENT",
+  );
+  assert.equal(
+    finalizeSeverityV2("severe pneumonia or very severe disease", "refer urgently", "stridor, lethargic", ["lethargic"]),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: unknown classification with danger sign escalates via heuristic base", () => {
+  // A classification not in the table but with action wording that would be URGENT via heuristic,
+  // and a danger sign in the case → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("WEIRD LUNG THING", "needs antibiotics maybe", "chest indrawing and unable to wake since morning", []),
+    "EMERGENCY",
+  );
+  // Same case without danger sign → falls back to heuristic (URGENT due to DISPOSITION_RE matching "antibiotics").
+  assert.equal(
+    finalizeSeverityV2("WEIRD LUNG THING", "needs antibiotics maybe", "chest indrawing, alert, drinking well", []),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2: table EMERGENCY + danger sign → EMERGENCY (no downgrade, escalation is idempotent)", () => {
+  // SEVERE PNEUMONIA is EMERGENCY in table. Danger sign "lethargic" is present.
+  // Escalation check fires first → EMERGENCY. Downgrade check never fires.
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "refer urgently", "chest indrawing, breathing fast, now lethargic and drowsy", ["lethargic"]),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: mhGAP table entries — PSYCHOSIS escalation, EPILEPSY passthrough", () => {
+  // PSYCHOSIS is URGENT in the table. Self-harm language escalates → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("PSYCHOSIS", "start antipsychotic, consult", "hearing voices, says he wants to kill himself", []),
+    "EMERGENCY",
+  );
+  // EPILEPSY is URGENT in the table. No danger sign → stays URGENT.
+  // NOTE: "seizure" IS in DANGER_RE, so the case text must avoid it to test the passthrough.
+  assert.equal(
+    finalizeSeverityV2("EPILEPSY", "start anti-seizure medicine", "three episodes of jerking with loss of awareness, normal in between", []),
+    "URGENT",
+  );
+  // EPILEPSY with a danger sign → EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("EPILEPSY", "start anti-seizure medicine", "seizures, now unconscious and not breathing", []),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: MALARIA (URGENT) stays URGENT without danger sign", () => {
+  // MALARIA is YELLOW → URGENT in the table.
+  assert.equal(
+    finalizeSeverityV2("MALARIA", "give artemether-lumefantrine", "fever for 4 days, headache, no danger signs", []),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2: SELF-HARM classification already EMERGENCY — downgrade doesn't fire", () => {
+  // SELF-HARM / SUICIDE is EMERGENCY in the table. No pneumonia sign → downgrade guard
+  // doesn't apply (the guard specifically checks for pneumonia signs).
+  assert.equal(
+    finalizeSeverityV2("SELF-HARM / SUICIDE", "refer urgently to mental health", "took an overdose, feeling suicidal", []),
+    "EMERGENCY",
+  );
+});
+
+test("finalizeSeverityV2: danger sign in caseText AND redFlags — handled once", () => {
+  // Danger sign appears in both — still escalates correctly to EMERGENCY.
+  assert.equal(
+    finalizeSeverityV2("PNEUMONIA", "give oral amoxicillin", "chest indrawing, child is floppy", ["floppy", "lethargic"]),
+    "EMERGENCY",
+  );
 });
