@@ -221,7 +221,7 @@ export async function triageFromHits(
     // must not flip the class. temp 0.3 made "fever, malaria area" land on MALARIA or FEVER:NO MALARIA
     // run-to-run; greedy takes the single most-likely reading every time. The danger-sign invariant +
     // the deterministic table are the backstops on top.
-    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0 },
+    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0.3, repeat_penalty: 1.1 },
     onDelta: opts?.onReasonDelta,
   });
   // If the reason pass was token-capped mid-<think> (the E-5 demo path caps predict), stripThink

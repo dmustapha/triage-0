@@ -15,7 +15,7 @@ export default defineConfig({
     },
   ],
   use: {
-    baseURL: "http://localhost:5062",
+    baseURL: "http://localhost:5063",
     headless: true,
     viewport: { width: 1280, height: 900 },
     actionTimeout: 15_000,
