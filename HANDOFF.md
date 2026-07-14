@@ -1,94 +1,62 @@
-# Triage-0 — Session Handoff
-> 2026-07-12 · v0.2.0 · FINAL STATE
+# Triage-0 Clinical Quality Audit — Session Handoff
+> 2026-07-13 · For next session: resume clinical quality audit
 
-## Summary
+## Current State
 
-Upgraded Triage-0 from hackathon MVP (v0.1.0) to portfolio-grade v0.2.0.
-All critical runtime defects fixed. Clinical severity logic hardened with 17 new tests.
-XSS hardened, CSP added. 100 tests pass, 0 fail, 13 skipped (need models/ingestion).
+**Phase 1 (Fix model inference): ✅ COMPLETE**
+- Clean 4B MedPsy model downloaded — 2,716,068,640 bytes (exact match, no corruption)
+- temp=0.3 + repeat_penalty=1.1 committed at HEAD (5e36397)
+- Model produces coherent clinical reasoning: ~69s reason pass + ~42s extract pass
+- R1 pneumonia case verified end-to-end: PNEUMONIA, URGENT, amoxicillin with weight-band dosing, full WHO plan, correct citation (page 6, score 0.737)
+- 88/88 unit tests pass
 
-## Final Test Results
+**Phases 2-9: READY TO RUN — blocked was resolved**
+- Zombie qvac-worker processes were holding RAG RocksDB locks → you ran `pkill -f qvac`
+- Default RAG workspace deleted → `rm -rf ~/.qvac/rag-hyperdb/triage0-who-protocols`
+- **`triage0-who-audit` workspace exists with 997 chunks** — use this!
 
-| Suite | Result |
-|-------|--------|
-| Unit tests (all 11 files) | ✅ 87/88 pass, 1 skip (dose-safety needs cite-map) |
-| HTTP validation integration | ✅ 12/12 pass |
-| Citation/grounding/injection/egress | ✅ 1 pass (egress control), 12 skip (need ingest) |
-| TypeScript | ✅ clean (`tsc --noEmit`) |
-| **Total** | **100 pass, 0 fail, 13 skip** |
+## What To Do Next Session
 
-## What was completed
-
-### Phase 0.5 — Critical Runtime Fixes
-| # | File | Fix |
-|---|------|-----|
-| 0.5a | `package.json` + postinstall | Zod v4 compat for `@qvac/sdk` |
-| 0.5b | `src/qvac/orchestrator.ts` | `release()` try/catches `unloadModelTimed`, always deletes from residents |
-| 0.5c | `src/qvac/perf-logger.ts` | `logPerf()` wraps all FS ops in try/catch |
-| 0.5d | `src/qvac/engine.ts` | `safeNum()`/`safeRound()` guards prevent NaN in perf log |
-| 0.5e | `src/qvac/engine.ts` | `hardSplit()` guards `overlap >= max` → infinite loop prevention |
-
-### Phase B — Clinical Hardening
-- 17 new `finalizeSeverityV2` tests covering: table path, fallback, escalation, downgrade, negation, redFlags, edge cases
-- Total severity tests: 30 (all passing)
-
-### Phase C — Security
-- `esc()` now escapes `'` (&#39;) — full XSS coverage
-- CSP header on all Express responses (`Content-Security-Policy`)
-- Fixed CSP ordering to precede `express.static`
-
-### Phase D — Docs
-- Version bumped to `0.2.0`
-- `FOR[Dami].md` created (developer education document)
-- `HANDOFF.md` updated with current state
-
-## Blockers (infrastructure)
-
-### 1. npm 11.6.2 corrupts native @qvac/* addon packages
-Symptom: `MODULE_NOT_FOUND: Cannot find module '@qvac/llm-llamacpp'`
-
-Root cause: npm 11.6.2 strips `package.json` and JS wrapper files from native Bare addon packages. Only `prebuilds/` directory survives `npm install`. The Bare runtime can't resolve these modules.
-
-**Interim fix:** Run `bash scripts/fix-addon-packages.sh` after `npm install`. This creates minimal `package.json` stubs. However, the packages are still missing their JS wrapper files (`index.js`, `addon.js`, `binding.js`), so the Bare runtime may still fail with more subtle errors.
-
-**Real fix:** Downgrade npm to a version that handles these packages correctly, or wait for npm upstream fix.
-
-### 2. MedPsy model not downloaded
-The 1.7b MedPsy model is expected at `.models/medpsy-1.7b-q4_k_m-imat.gguf` (relative to repo root). This file doesn't exist and there's no download script.
-
-### 3. RAG store not ingested
-13 integration tests skip because `citation-map.json` is missing. Run `npm run ingest` to populate the RAG store.
-
-## How to resume
-
+### 1. Kill remaining servers (they have no RAG data)
 ```bash
-cd /Users/MAC/triage-0
-
-# Fix npm corruption (run after every npm install)
-bash scripts/fix-addon-packages.sh
-
-# Verify
-npm run typecheck        # should be clean
-npm test                 # 100 pass, 0 fail, 13 skip
-
-# To run model-dependent tests:
-# 1. Download medpsy-1.7b-q4_k_m-imat.gguf → .models/
-# 2. Run: npm run ingest   (populates RAG store)
-# 3. Start server: PORT=3010 npm start
-# 4. Server tests will now pass
+lsof -ti:5066,5067,5068 | xargs kill
 ```
 
-## Key files changed
+### 2. Start server with audit workspace
+```bash
+cd /Users/MAC/triage-0
+TRIAGE0_RAG_WORKSPACE=triage0-who-audit MODEL_ID=4b REASON_PREDICT=1024 PORT=5070 npm start
+```
+Wait for health: `curl -s http://localhost:5070/health` → both models in residentModels
 
-| File | Change |
-|------|--------|
-| `src/qvac/orchestrator.ts` | try/catch on unload (0.5b) |
-| `src/qvac/perf-logger.ts` | FS error guard (0.5c) |
-| `src/qvac/engine.ts` | NaN guard + hardSplit guard (0.5d, 0.5e) |
-| `tests/unit/severity.test.ts` | +17 finalizeSeverityV2 tests (Phase B) |
-| `public/assets/js/triage.js` | esc() escapes `'` (C1) |
-| `src/server.ts` | CSP header (C2) |
-| `package.json` | v0.2.0 |
-| `FOR[Dami].md` | New: developer education |
-| `scripts/fix-addon-packages.sh` | New: npm corruption workaround |
-| `HANDOFF.md` | This file |
+### 3. Update audit script port
+Edit `scripts/clinical-audit.ts` line 7: change `const BASE = "http://localhost:5068";` to `"http://localhost:5070"`
+
+### 4. Run the clinical audit
+```bash
+node --import tsx scripts/clinical-audit.ts
+```
+29 cases, ~110s each → ~53 minutes total. Outputs to `tests/quality/results.json`.
+
+### 5. Analyze results & update CLINICAL-QUALITY-REPORT.md
+
+## What's Built
+
+| File | Purpose |
+|------|---------|
+| `scripts/clinical-audit.ts` | Direct API test runner — 29 cases, SSE parsing, classification/severity/plan validation |
+| `scripts/quick-test.sh` | Single triage test via curl |
+| `tests/quality/clinical-quality.spec.ts` | Playwright spec (34 tests) — but WebKit headless crashes, so use audit.ts instead |
+| `playwright.config.ts` | Playwright config (WebKit, serial) |
+
+## What Was Learned
+
+1. **4B model file was corrupted** — original download had 8MB size mismatch. Fresh download at exact size fixed the garbage output.
+2. **RAG RocksDB lock** — the SDK's bare worker processes hold file descriptor locks. When a server is killed, the bare worker survives and blocks all subsequent servers. Solution: `pkill -f qvac` + `npm run ingest`.
+3. **Separate RAG workspace** — using `TRIAGE0_RAG_WORKSPACE` env var avoids lock conflicts with zombie workers from old servers.
+4. **Playwright WebKit won't launch** — headless WebKit crashes with "browser.newPage: Test ended". Use the direct API audit script instead.
+
+## Key Git State
+- Branch: main
+- HEAD: 5e36397 (temp=0→0.3 + repeat_penalty)
+- All files committed, working tree clean

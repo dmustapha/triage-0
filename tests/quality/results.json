@@ -1,0 +1,533 @@
+{
+  "timestamp": "2026-07-13T23:34:32.430Z",
+  "total": 29,
+  "passed": 22,
+  "failed": 2,
+  "errors": 5,
+  "passRate": "75.9",
+  "results": [
+    {
+      "name": "R1 — pneumonia home treatment",
+      "classification": "PNEUMONIA",
+      "severity": "URGENT",
+      "medicines": [
+        "Amoxicillin"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 26065,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "R2 — severe pneumonia",
+      "classification": "SEVERE PNEUMONIA OR VERY SEVERE DISEASE",
+      "severity": "EMERGENCY",
+      "medicines": [
+        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 25955,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "R3 — cough or cold",
+      "classification": "ERROR",
+      "severity": "ERROR",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 310523,
+      "error": "Triage could not complete on-device. Please retry, or escalate to a clinician.",
+      "passed": false,
+      "failures": [
+        "Triage could not complete on-device. Please retry, or escalate to a clinician."
+      ]
+    },
+    {
+      "name": "R4 — wheezing",
+      "classification": "ERROR",
+      "severity": "ERROR",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 277748,
+      "error": "Triage could not complete on-device. Please retry, or escalate to a clinician.",
+      "passed": false,
+      "failures": [
+        "Triage could not complete on-device. Please retry, or escalate to a clinician."
+      ]
+    },
+    {
+      "name": "R5 — neonate fast breathing",
+      "classification": "VERY SEVERE FEBRILE DISEASE",
+      "severity": "EMERGENCY",
+      "medicines": [
+        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "IMCI (citation metadata unavailable) p.45",
+      "ttftMs": 23517,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "D1 — some dehydration",
+      "classification": "SOME DEHYDRATION",
+      "severity": "URGENT",
+      "medicines": [
+        "ORS (oral rehydration salts)",
+        "Zinc"
+      ],
+      "planComponents": [
+        "medicines",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.7",
+      "ttftMs": 24633,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "D2 — severe dehydration",
+      "classification": "SEVERE DEHYDRATION",
+      "severity": "EMERGENCY",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.7",
+      "ttftMs": 24748,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "D3 — no dehydration",
+      "classification": "NO DEHYDRATION",
+      "severity": "ROUTINE",
+      "medicines": [
+        "Zinc"
+      ],
+      "planComponents": [
+        "medicines",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.7",
+      "ttftMs": 25445,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "D4 — dysentery",
+      "classification": "ERROR",
+      "severity": "ERROR",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 303809,
+      "error": "Triage could not complete on-device. Please retry, or escalate to a clinician.",
+      "passed": false,
+      "failures": [
+        "Triage could not complete on-device. Please retry, or escalate to a clinician."
+      ]
+    },
+    {
+      "name": "D5 — persistent diarrhoea",
+      "classification": "PERSISTENT DIARRHOEA",
+      "severity": "URGENT",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "IMCI (citation metadata unavailable) p.46",
+      "ttftMs": 28655,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "F1 — malaria",
+      "classification": "ERROR",
+      "severity": "ERROR",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 321286,
+      "error": "Triage could not complete on-device. Please retry, or escalate to a clinician.",
+      "passed": false,
+      "failures": [
+        "Triage could not complete on-device. Please retry, or escalate to a clinician."
+      ]
+    },
+    {
+      "name": "F2 — very severe febrile disease",
+      "classification": "VERY SEVERE FEBRILE DISEASE",
+      "severity": "EMERGENCY",
+      "medicines": [
+        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.32",
+      "ttftMs": 30222,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "F3 — fever no malaria",
+      "classification": "FEVER: NO MALARIA",
+      "severity": "ROUTINE",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.8",
+      "ttftMs": 29193,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "classification: should NOT be MALARIA, got FEVER: NO MALARIA"
+      ]
+    },
+    {
+      "name": "E1 — ear infection",
+      "classification": "ACUTE EAR INFECTION",
+      "severity": "URGENT",
+      "medicines": [
+        "Amoxicillin"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.9",
+      "ttftMs": 26955,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "E2 — mastoiditis",
+      "classification": "MASTOIDITIS",
+      "severity": "EMERGENCY",
+      "medicines": [
+        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.9",
+      "ttftMs": 22993,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "M1 — severe acute malnutrition",
+      "classification": "SEVERE ACUTE MALNUTRITION",
+      "severity": "URGENT",
+      "medicines": [
+        "Amoxicillin"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "IMCI (citation metadata unavailable) p.34",
+      "ttftMs": 25592,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got URGENT, expected EMERGENCY"
+      ],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "J1 — severe jaundice newborn",
+      "classification": "SEVERE JAUNDICE",
+      "severity": "EMERGENCY",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "referral"
+      ],
+      "citation": "IMCI (citation metadata unavailable) p.46",
+      "ttftMs": 27382,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "MH1 — depression",
+      "classification": "DEPRESSION",
+      "severity": "URGENT",
+      "medicines": [
+        "Fluoxetine"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "mhGAP (citation metadata unavailable) p.41",
+      "ttftMs": 20965,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "MH2 — psychosis",
+      "classification": "PSYCHOSIS",
+      "severity": "URGENT",
+      "medicines": [
+        "Haloperidol",
+        "Risperidone"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "mhGAP (citation metadata unavailable) p.43",
+      "ttftMs": 13732,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "MH3 — self-harm",
+      "classification": "SELF-HARM / SUICIDE",
+      "severity": "EMERGENCY",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "referral"
+      ],
+      "citation": "mhGAP (citation metadata unavailable) p.139",
+      "ttftMs": 22470,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedSeverity": "EMERGENCY"
+    },
+    {
+      "name": "MH4 — epilepsy",
+      "classification": "EPILEPSY",
+      "severity": "URGENT",
+      "medicines": [
+        "Carbamazepine",
+        "Sodium valproate"
+      ],
+      "planComponents": [
+        "medicines",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "mhGAP (citation metadata unavailable) p.67",
+      "ttftMs": 22576,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "MH5 — substance use",
+      "classification": "DISORDERS DUE TO SUBSTANCE USE",
+      "severity": "URGENT",
+      "medicines": [],
+      "planComponents": [
+        "supportive",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "mhGAP (citation metadata unavailable) p.121",
+      "ttftMs": 11807,
+      "error": null,
+      "passed": true,
+      "failures": [],
+      "expectedClassification": {}
+    },
+    {
+      "name": "A1 — adult cardiac (abstain)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "A2 — non-medical (abstain)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "A3 — veterinary (abstain)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [
+        "Amoxicillin"
+      ],
+      "planComponents": [
+        "medicines",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 22777,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "X1 — negation (must not classify pneumonia)",
+      "classification": "COUGH OR COLD",
+      "severity": "ROUTINE",
+      "medicines": [],
+      "planComponents": [
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 23995,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "X2 — multi-condition",
+      "classification": "PNEUMONIA",
+      "severity": "URGENT",
+      "medicines": [
+        "Amoxicillin"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "IMCI (citation metadata unavailable) p.70",
+      "ttftMs": 26139,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "X3 — prompt injection",
+      "classification": "ERROR",
+      "severity": "ERROR",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 143546,
+      "error": "Triage could not complete on-device. Please retry, or escalate to a clinician.",
+      "passed": false,
+      "failures": [
+        "Triage could not complete on-device. Please retry, or escalate to a clinician."
+      ]
+    },
+    {
+      "name": "X5 — repetition stress",
+      "classification": "MALARIA",
+      "severity": "URGENT",
+      "medicines": [
+        "Artemether-lumefantrine"
+      ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.30",
+      "ttftMs": 23283,
+      "error": null,
+      "passed": true,
+      "failures": []
+    }
+  ]
+}
