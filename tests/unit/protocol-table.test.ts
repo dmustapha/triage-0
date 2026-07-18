@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { config } from "../../src/config.js";
-import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, reconcileJaundice, reconcileSubstance, isPersistentDiarrhoea, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
+import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, reconcileFebrile, reconcileMultiSymptom, hasPneumoniaSign, hasFeverMalariaContext, hasBilateralOedema, reconcileJaundice, reconcileSubstance, isPersistentDiarrhoea, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
 
 const mapPath = config.citationMapPath;
 const dosePath = new URL("../../data/rag/dose-tables.txt", import.meta.url).pathname;
@@ -150,6 +150,10 @@ test("reconcileDiarrhoea: blood→DYSENTERY and SEVERE-DEHYDRATION over-call gua
   // Non-dehydration classes are untouched.
   assert.equal(reconcileDiarrhoea("PNEUMONIA", "blood in the stool", false), "PNEUMONIA");
   assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "watery diarrhoea, no blood", false), "SOME DEHYDRATION");
+  // SOME→NO downgrade (D3): all signs explicitly reassuring, no dehydration marker → NO DEHYDRATION.
+  assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "loose stools for 2 days, alert, eyes normal, drinking well, skin pinch goes back quickly", false), "NO DEHYDRATION");
+  // A genuine SOME case (D1) has dehydration markers → NOT downgraded.
+  assert.equal(reconcileDiarrhoea("SOME DEHYDRATION", "diarrhoea, restless, sunken eyes, drinks eagerly, skin pinch goes back slowly", false), "SOME DEHYDRATION");
 });
 
 test("colour band → severity is internally consistent for IMCI entries", () => {
@@ -178,6 +182,66 @@ test("misroute guards: epilepsy/psychosis routing, self-harm gate, ear reconcile
   assert.equal(reconcileEar("VERY SEVERE FEBRILE DISEASE", "fever and a boggy swelling behind the right ear pushing it forward"), "MASTOIDITIS");
   assert.equal(reconcileEar("PNEUMONIA", "cough and fast breathing, no ear problem"), "PNEUMONIA");
 });
+
+test("multi-symptom precedence: respiratory/fever leads over the dehydration/ear co-class (deterministic)", () => {
+  // pneumonia sign detector — positive vs negated / normal
+  assert.ok(hasPneumoniaSign("cough with fast breathing 54 a minute"), "explicit rate ≥50 is a pneumonia sign");
+  assert.ok(hasPneumoniaSign("pus from the ear and chest indrawing"), "chest indrawing is a pneumonia sign");
+  assert.ok(hasPneumoniaSign("toux, respiration rapide à 54 par minute, tirage sous-costal"), "FR lay respiratory terms count");
+  assert.ok(!hasPneumoniaSign("no chest indrawing and breathing normally"), "negated 'no chest indrawing' must NOT count (CB1)");
+  assert.ok(!hasPneumoniaSign("breathing 40 a minute, alert"), "a rate below 50 is not the fast-breathing marker");
+
+  // fever+malaria context
+  assert.ok(hasFeverMalariaContext("in a malaria area, fever for 3 days no test done"));
+  assert.ok(!hasFeverMalariaContext("fever, malaria test negative"), "a negative test is not the no-test rule");
+
+  // MS1 pattern: model said SOME DEHYDRATION but a pneumonia sign is present → respiratory leads
+  assert.equal(
+    reconcileMultiSymptom("SOME DEHYDRATION", "cough with fast breathing 54 a minute AND watery diarrhoea, sunken eyes, drinks eagerly"),
+    "SEVERE PNEUMONIA OR VERY SEVERE DISEASE", // danger-sign gate downgrades to PNEUMONIA when no danger sign
+  );
+  // MS5 pattern: model said ACUTE EAR INFECTION but a pneumonia sign is present → respiratory leads
+  assert.equal(
+    reconcileMultiSymptom("ACUTE EAR INFECTION", "cough with fast breathing 52 a minute and pus from the left ear"),
+    "SEVERE PNEUMONIA OR VERY SEVERE DISEASE",
+  );
+  // MS2 pattern: model said SOME DEHYDRATION in a fever+malaria case (no pneumonia sign) → malaria leads
+  assert.equal(
+    reconcileMultiSymptom("SOME DEHYDRATION", "in a malaria area, fever 3 days no test, loose watery stools, sunken eyes"),
+    "MALARIA",
+  );
+  // NO REGRESSION: a pure dehydration case (no pneumonia sign, no malaria) is left untouched
+  assert.equal(reconcileMultiSymptom("SOME DEHYDRATION", "18-month-old, diarrhoea 2 days, restless, sunken eyes, drinks eagerly, skin pinch slow"), "SOME DEHYDRATION");
+  // NO REGRESSION: CB1 (ear problem, breathing normal) stays the ear class — negated 'no chest indrawing'
+  assert.equal(reconcileMultiSymptom("ACUTE EAR INFECTION", "no chest indrawing and breathing normally, pus from the ear 5 days"), "ACUTE EAR INFECTION");
+  // Never re-points a non-target class (DYSENTERY / MASTOIDITIS / PNEUMONIA already primary)
+  assert.equal(reconcileMultiSymptom("DYSENTERY", "blood in stool and fast breathing 55"), "DYSENTERY");
+});
+
+test("bilateral pitting oedema is detected as complicated SAM (deterministic, WHO)", () => {
+  assert.ok(hasBilateralOedema("swelling of both feet that pits on pressure, very thin arms")); // RA4
+  assert.ok(hasBilateralOedema("both feet are swollen and pit when pressed")); // CB3
+  assert.ok(hasBilateralOedema("oedema of both feet, visible severe wasting")); // M1
+  // negation + single-limb / non-oedema must NOT trip it
+  assert.ok(!hasBilateralOedema("no swelling of the feet, alert and feeding"));
+  assert.ok(!hasBilateralOedema("one swollen ankle after a fall"));
+  assert.ok(!hasBilateralOedema("cough and fast breathing, no oedema"));
+});
+
+test("reconcileFebrile: 'very severe FEBRILE disease' without fever + respiratory danger → severe pneumonia", () => {
+  // V5: no fever anywhere, lay respiratory collapse → severe cough/breathing class (still EMERGENCY+refer)
+  assert.equal(
+    reconcileFebrile("VERY SEVERE FEBRILE DISEASE", "5-month-old puffing and struggling, went blue round the lips, gone limp, will not take the milk"),
+    "SEVERE PNEUMONIA OR VERY SEVERE DISEASE",
+  );
+  // genuine VSD cases carry fever / stiff neck / malaria — untouched
+  assert.equal(reconcileFebrile("VERY SEVERE FEBRILE DISEASE", "high fever, bulging fontanelle, stiff neck, drowsy"), "VERY SEVERE FEBRILE DISEASE"); // RA1
+  assert.equal(reconcileFebrile("VERY SEVERE FEBRILE DISEASE", "fever 2 days, stiff neck, not feeding"), "VERY SEVERE FEBRILE DISEASE"); // F2
+  assert.equal(reconcileFebrile("VERY SEVERE FEBRILE DISEASE", "dengue area, high fever, bleeding gums, cold clammy"), "VERY SEVERE FEBRILE DISEASE"); // RA6
+  // never touches a non-VSD class
+  assert.equal(reconcileFebrile("MALARIA", "puffing and blue lips, no fever"), "MALARIA");
+});
+
 
 test("out-of-scope guard: adult cardiac chest pain abstains; paediatric respiratory is untouched", () => {
   const cardiac = allowedClassesFor("A 40 year old man with crushing chest pain spreading to his left arm.");

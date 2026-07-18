@@ -65,6 +65,9 @@ export const TriageCardSchema = z.object({
   }),
   reasoning: z.string().min(1),
   red_flags: z.array(z.string()).default([]),
+  /** 1D: the model's self-reported classification confidence, surfaced for the UI + telemetry (and the
+   *  future adaptive-thinking / self-consistency tail). Absent on the abstain path. */
+  confidence: z.enum(["high", "medium", "low"]).optional(),
   plan: ManagementPlanSchema.optional(),
 });
 export type TriageCard = z.infer<typeof TriageCardSchema>;
@@ -79,6 +82,10 @@ export const TriageExtractSchema = z.object({
   action: z.string().min(1),
   reasoning: z.string().min(1),
   red_flags: z.array(z.string()).default([]),
+  // 1D: the model's self-reported confidence in the classification. Near-free (no token logprobs in QVAC).
+  // Drives adaptive thinking (spend a full reason pass only on low/medium) and flags the tail for optional
+  // self-consistency. Defaulted so the belt-and-braces regex-parse path never fails on its absence.
+  confidence: z.enum(["high", "medium", "low"]).default("medium"),
 });
 export type TriageExtract = z.infer<typeof TriageExtractSchema>;
 
@@ -98,8 +105,9 @@ export const TRIAGE_EXTRACT_JSON_SCHEMA = {
     action: { type: "string", description: "The exact treatment / next step on the matched classification's protocol line." },
     reasoning: { type: "string", description: "Brief justification citing the matched signs." },
     red_flags: { type: "array", items: { type: "string" }, description: "Danger signs present in the case, if any." },
+    confidence: { type: "string", enum: ["high", "medium", "low"], description: "Your confidence that this classification is correct for the case: high (signs unambiguously match one class), medium (a plausible best of two), low (signs are sparse, conflicting, or out of scope)." },
   },
-  required: ["classification", "action", "reasoning", "red_flags"],
+  required: ["classification", "action", "reasoning", "red_flags", "confidence"],
   additionalProperties: false,
 } as const;
 
@@ -117,8 +125,9 @@ export function buildExtractJsonSchema(allowedClasses: string[]) {
       action: TRIAGE_EXTRACT_JSON_SCHEMA.properties.action,
       reasoning: TRIAGE_EXTRACT_JSON_SCHEMA.properties.reasoning,
       red_flags: TRIAGE_EXTRACT_JSON_SCHEMA.properties.red_flags,
+      confidence: TRIAGE_EXTRACT_JSON_SCHEMA.properties.confidence,
     },
-    required: ["classification", "action", "reasoning", "red_flags"],
+    required: ["classification", "action", "reasoning", "red_flags", "confidence"],
     additionalProperties: false,
   };
 }

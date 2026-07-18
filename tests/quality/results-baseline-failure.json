@@ -1,0 +1,445 @@
+{
+  "timestamp": "2026-07-18T14:02:10.011Z",
+  "total": 26,
+  "passed": 1,
+  "failed": 25,
+  "errors": 0,
+  "passRate": "3.8",
+  "results": [
+    {
+      "name": "V1 — SOB/RR abbreviations, no resp keyword (pneumonia)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /^PNEUMONIA$/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "V2 — 'burning up' no fever-word, malaria area (malaria)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /MALARIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "V3 — 'the runs'/'watery poo' lay diarrhoea (some dehydration)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /SOME DEHYDRATION/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "V4 — 'otitis'/'lug'/discharge, no word 'ear' (acute ear infection)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /ACUTE EAR INFECTION/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "V5 — 'blue lips'/'limp' lay danger signs (severe pneumonia/VSD)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /SEVERE PNEUMONIA|VERY SEVERE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "V6 — 'washed-out palms' no pallor-word (anaemia)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected match /URGENT|EMERGENCY/",
+        "classification: got UNKNOWN, expected match /ANAEMIA/"
+      ],
+      "expectedSeverity": {},
+      "expectedClassification": {}
+    },
+    {
+      "name": "MS1 — pneumonia + some dehydration",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /PNEUMONIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "MS2 — malaria + some dehydration",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /MALARIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "MS3 — acute ear infection + malaria",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /ACUTE EAR INFECTION/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "MS4 — dysentery + some dehydration",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /DYSENTERY/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "MS5 — pneumonia + acute ear infection",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /PNEUMONIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "CB1 — 'no chest indrawing' but ear problem (acute ear infection)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /ACUTE EAR INFECTION/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "CB2 — stiff neck with a cough distractor (very severe febrile disease)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /VERY SEVERE FEBRILE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "CB3 — 'thin' + bilateral oedema (severe acute malnutrition)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /SEVERE ACUTE MALNUTRITION/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "CB4 — 'sad/tearful' febrile toddler, mh+fever buckets (malaria, not depression)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /MALARIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA1 — meningitis (very severe febrile disease)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /VERY SEVERE FEBRILE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA2 — complicated measles (very severe febrile disease)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /VERY SEVERE FEBRILE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA3 — PSBI newborn sepsis (severe / very severe disease)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /SEVERE PNEUMONIA|VERY SEVERE DISEASE|VERY SEVERE FEBRILE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA4 — complicated SAM oedema (severe acute malnutrition)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /SEVERE ACUTE MALNUTRITION/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA5 — recurrent wheeze no danger sign (cough or cold / non-severe)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "classification: got UNKNOWN, expected match /COUGH OR COLD|PNEUMONIA/"
+      ],
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA6 — dengue warning signs (very severe febrile disease)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /VERY SEVERE FEBRILE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    },
+    {
+      "name": "RA7 — mhGAP anxiety/PTSD (gap — abstain acceptable today)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": true,
+      "failures": []
+    },
+    {
+      "name": "NE1 — FR pneumonia (toux, respiration rapide)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /^PNEUMONIA$/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "NE2 — FR some dehydration (diarrhée, yeux enfoncés)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /SOME DEHYDRATION/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "NE3 — ES malaria (fiebre, zona de paludismo)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected URGENT",
+        "classification: got UNKNOWN, expected match /MALARIA/"
+      ],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
+    },
+    {
+      "name": "NE4 — ES severe pneumonia/VSD (tos, no puede beber, letárgico)",
+      "classification": "UNKNOWN",
+      "severity": "UNKNOWN",
+      "medicines": [],
+      "planComponents": [],
+      "citation": "",
+      "ttftMs": 0,
+      "error": null,
+      "passed": false,
+      "failures": [
+        "severity: got UNKNOWN, expected EMERGENCY",
+        "classification: got UNKNOWN, expected match /SEVERE PNEUMONIA|VERY SEVERE DISEASE/"
+      ],
+      "expectedSeverity": "EMERGENCY",
+      "expectedClassification": {}
+    }
+  ]
+}

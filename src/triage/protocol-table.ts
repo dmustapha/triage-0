@@ -779,7 +779,7 @@ export function isEncoded(classification: string): boolean {
 export function reconcileMalaria(classification: string, caseText: string): string {
   if (normalizeClassification(classification) !== "FEVER: NO MALARIA") return classification;
   const t = caseText.toLowerCase();
-  const malariaRisk = /malaria area|malaria[- ]?risk|high[- ]?risk|endemic|in a malaria|lives? in[^.]{0,40}malaria|travel(?:led)?[^.]{0,40}malaria/.test(t);
+  const malariaRisk = /malaria area|malaria[- ]?risk|high[- ]?risk|endemic|in a malaria|lives? in[^.]{0,40}malaria|travel(?:led)?[^.]{0,40}malaria|mosquito (?:sickness|illness|disease|fever)/.test(t);
   const negated = /test[^.]{0,20}negative|negative[^.]{0,20}(?:test|malaria)|tested negative|no malaria risk|not a malaria area|no risk of malaria|do(?:es)? ?n.?t live[^.]{0,30}malaria|not? malaria area/.test(t);
   return malariaRisk && !negated ? "MALARIA" : classification;
 }
@@ -821,7 +821,25 @@ export function reconcileDiarrhoea(classification: string, caseText: string, dan
       !/very (?:slow|sunken)|unconscious|lethargic|not able to drink|unable to drink|skin pinch.{0,15}very/i.test(caseText)) {
     return "SOME DEHYDRATION";
   }
+  // SOME→NO downgrade: the 1.7B over-calls SOME DEHYDRATION on a plainly-hydrated diarrhoea case. WHO Plan
+  // A (NO DEHYDRATION) applies when there are NOT enough signs for some/severe dehydration. Only fires when
+  // the case has EXPLICIT reassuring signs AND no dehydration marker at all, so a real SOME case (sunken
+  // eyes / drinks eagerly / slow skin pinch / restless) is never down-banded.
+  if (norm === "SOME DEHYDRATION" && !hasBloodInStool(caseText) && hasNoDehydrationSigns(caseText)) {
+    return "NO DEHYDRATION";
+  }
   return classification;
+}
+
+/** Diarrhoea case with EXPLICIT reassuring hydration signs and NO dehydration marker → WHO NO DEHYDRATION.
+ *  A dehydration marker (sunken eyes, restless/irritable, drinks eagerly/thirsty, slow skin pinch, lethargy,
+ *  drinking poorly) vetoes the downgrade. */
+export function hasNoDehydrationSigns(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  const marker = /sunken|hollow eyes|restless|irritable|drinks eagerly|drinking eagerly|thirsty|skin pinch[^.]{0,24}(?:slow|slowly)|lethargic|drowsy|drinking poorly|not drinking|unable to drink|floppy|listless/.test(t);
+  if (marker) return false;
+  const reassuring = /drink\w* (?:well|normally|fine)|eyes (?:are |look )?normal|not sunken|eyes not sunken|skin pinch[^.]{0,24}(?:quick|quickly|immediately|straight back|normal)|\balert\b|playing|active/.test(t);
+  return reassuring;
 }
 
 /**
@@ -852,6 +870,23 @@ export function reconcileJaundice(classification: string, caseText: string): str
   return severe ? "SEVERE JAUNDICE" : classification;
 }
 
+/**
+ * "VERY SEVERE FEBRILE DISEASE" is, by definition, a FEVER emergency (meningitis/severe malaria/complicated
+ * measles/dengue). A general-danger-sign case with NO fever — e.g. a lay respiratory collapse ("puffing and
+ * struggling, blue round the lips, gone limp, will not take the milk") — is not febrile disease; the small
+ * model reaches for VSD as a generic "severe" label. Re-point it to the severe cough/breathing class
+ * (SEVERE PNEUMONIA OR VERY SEVERE DISEASE — also EMERGENCY + refer urgently, so the disposition is
+ * unchanged) ONLY when there is no fever context AND a respiratory danger sign is present. Every genuine
+ * VSD case carries fever/stiff-neck (RA1/RA2/RA6/CB2/F2), so those are untouched.
+ */
+export function reconcileFebrile(classification: string, caseText: string): string {
+  if (normalizeClassification(classification) !== "VERY SEVERE FEBRILE DISEASE") return classification;
+  const t = caseText.toLowerCase();
+  const feverContext = /\bfever\b|febrile|\bhot\b|burning up|high temperature|\btemperature\b|\bfiebre\b|\bfièvre\b|stiff neck|bulging fontanelle|malaria|mosquito (?:sickness|illness)|dengue|measles|rash/.test(t);
+  const respiratory = /puffing|struggl\w*|difficulty breathing|difficult breathing|\bbreath|cough|cyanos|blue (?:round )?(?:the )?lips|blue (?:skin|tinge)|chest indrawing|stridor|grunt|wheez|respiration|not (?:able to )?(?:take|drink)/.test(t);
+  return !feverContext && respiratory ? "SEVERE PNEUMONIA OR VERY SEVERE DISEASE" : classification;
+}
+
 export function reconcileEar(classification: string, caseText: string): string {
   const t = caseText.toLowerCase();
   const behindEar = /behind (?:the )?(?:right |left )?ear|over the mastoid|mastoid (?:area|process|region)/.test(t);
@@ -859,6 +894,68 @@ export function reconcileEar(classification: string, caseText: string): string {
   const pushingEar = /ear (?:is )?(?:being )?push(?:ed|ing)? (?:forward|out|down)|push(?:ed|ing)? (?:the )?ear (?:forward|out)/.test(t);
   const mastoid = /\bmastoid/.test(t) || (behindEar && swelling) || pushingEar;
   return mastoid ? "MASTOIDITIS" : classification;
+}
+
+/**
+ * A POSITIVE (non-negated) IMCI pneumonia respiratory sign: fast breathing at/above the age threshold
+ * (an explicit rate ≥ 50/min) or chest/lower-chest-wall indrawing — including the FR/ES lay terms the
+ * failure set uses (respiration rapide, tirage sous-costal, tiraje). Negation-scoped so "no chest
+ * indrawing" / "breathing normally" (a NEGATIVE, e.g. CB1) does NOT count. Used by reconcileMultiSymptom
+ * to detect a co-existing pneumonia in a case the model classified as its dehydration/ear co-problem.
+ */
+export function hasPneumoniaSign(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  // Explicit fast-breathing RATE in the pneumonia range (IMCI: ≥50/min at 2–12 mo, ≥40 at 1–5 y; we take
+  // ≥50 as the unambiguous fast-breathing marker across ages).
+  const rate = t.match(/\b(\d{2,3})\s*(?:a minute|per minute|\/min|\/minute|breaths?(?: (?:a|per) min(?:ute)?)?|bpm|par minute|por minuto)/);
+  if (rate && parseInt(rate[1], 10) >= 50) return true;
+  // Worded signs — reject only when immediately negated ("no chest indrawing", "sin tiraje", "pas de").
+  for (const term of ["fast breathing", "chest indrawing", "lower chest wall indrawing", "chest wall indrawing", "respiration rapide", "tirage sous-costal", "tirage", "tiraje del pecho", "tiraje"]) {
+    let idx = t.indexOf(term);
+    while (idx >= 0) {
+      const pre = t.slice(Math.max(0, idx - 7), idx);
+      if (!/\b(no|not|sin|pas|sans)\s$/.test(pre)) return true;
+      idx = t.indexOf(term, idx + term.length);
+    }
+  }
+  return false;
+}
+
+/** Fever in a malaria-risk context with no stated negative test — the WHO no-test rule's precondition
+ *  (fever + risk → treat as malaria). Reused to give a co-existing malaria problem precedence over a plain
+ *  dehydration class the model may have picked instead. */
+export function hasFeverMalariaContext(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  const fever = /\bfever\b|febrile|\bhot\b|burning up|high temperature|\bfiebre\b|\bfièvre\b/.test(t);
+  const malariaRisk = /\bmalaria\b|malaria area|malaria[- ]?risk|malaria zone|in a malaria|paludismo|paludisme|mosquito sickness|mosquito illness/.test(t);
+  const negated = /test[^.]{0,20}negative|negative[^.]{0,20}(?:test|malaria)|tested negative|not a malaria area|no malaria risk/.test(t);
+  return fever && malariaRisk && !negated;
+}
+
+/**
+ * Multi-symptom PRECEDENCE guard. IMCI assesses every main symptom and treats all of them, but the single
+ * classification card must name the PRIMARY — the antibiotic-lead / most-urgent problem. A 1.7B model,
+ * faced with two problems, fixates on the one with the most vivid signs (dehydration's sunken eyes /
+ * skin-pinch / drinks-eagerly cluster), so it names the co-problem and drops the lead. This deterministic
+ * guard restores the WHO precedence, but ONLY re-points the LOW-precedence classes (plain dehydration and
+ * acute/chronic ear infection): when the model landed on one of those YET the case also carries a positive
+ * pneumonia sign, the primary is PNEUMONIA (respiratory leads); when it landed on a dehydration class and
+ * the case is a fever+malaria case, the primary is MALARIA. Blood-in-stool (DYSENTERY), mastoiditis, and
+ * any already-correct primary are never touched. A pure single-symptom dehydration/ear case has neither a
+ * pneumonia sign nor a malaria context, so it is left exactly as the model classified it (no regression).
+ * Severity is still set downstream by the danger-sign gate.
+ */
+export function reconcileMultiSymptom(classification: string, caseText: string): string {
+  const norm = normalizeClassification(classification);
+  const plainDehydration = norm === "SOME DEHYDRATION" || norm === "NO DEHYDRATION" || norm === "SEVERE DEHYDRATION";
+  const earInfection = norm === "ACUTE EAR INFECTION" || norm === "CHRONIC EAR INFECTION";
+  if (!plainDehydration && !earInfection) return classification;
+  // Respiratory pneumonia takes antibiotic-lead precedence over both dehydration and ear.
+  if (hasPneumoniaSign(caseText)) return "SEVERE PNEUMONIA OR VERY SEVERE DISEASE"; // downgraded to PNEUMONIA by the danger-sign gate when no danger sign
+  // Fever+malaria takes precedence over plain dehydration (ear stays ear — "an ear problem stays an ear
+  // problem", handled by reconcileEar; we do not override an ear class on fever alone).
+  if (plainDehydration && hasFeverMalariaContext(caseText)) return "MALARIA";
+  return classification;
 }
 
 /**
@@ -879,6 +976,22 @@ export function hasBloodInStool(caseText: string): boolean {
   const blood = /\bblood\b|\bbloody\b|blood-?stained|blood-?streaked/.test(t);
   const stoolContext = /diarrh|\bstools?\b|\bmotions?\b|\bloose\b|watery|\bpoo\b|mucus/.test(t);
   return blood && stoolContext;
+}
+
+/**
+ * Deterministic complicated-SAM detector. Bilateral pitting oedema (oedema of BOTH feet) is an
+ * unambiguous WHO sign of SEVERE ACUTE MALNUTRITION (complicated) that mandates urgent referral — it must
+ * never depend on the 1.7B model (which intermittently abstains on it). Requires BOTH bilaterality and a
+ * swelling/oedema/pitting term, negation-guarded ("no swelling"), so an ordinary "swollen" mention or a
+ * single-limb swelling does not trip it. Forced across every path, including the model-UNKNOWN abstain
+ * branch (like hasBloodInStool → DYSENTERY). Over-calling toward SAM+refer is the safe direction.
+ */
+export function hasBilateralOedema(caseText: string): boolean {
+  const t = caseText.toLowerCase();
+  if (/\bno (?:oedema|edema|swelling)\b|without (?:oedema|edema|swelling)|not swollen/.test(t)) return false;
+  const bilateral = /both feet|both legs|both ankles|bilateral/.test(t);
+  const oedema = /o?edema|swollen|swelling|pits?\b|pitting|pitted|pit (?:on|when|under)|puffy/.test(t);
+  return bilateral && oedema;
 }
 
 /**
