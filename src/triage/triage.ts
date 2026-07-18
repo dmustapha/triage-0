@@ -20,18 +20,21 @@ import {
   type PlanCitation,
 } from "./schema.js";
 import { finalizeSeverity, finalizeSeverityV2, hasEmergencySign } from "./severity.js";
+import { routeCase, type RouteResult } from "./class-router.js";
 import {
   lookupProtocol,
   normalizeClassification,
   docFor,
   emergencyReferral,
-  allowedClassesFor,
   reconcileMalaria,
   reconcileDiarrhoea,
   reconcileEar,
+  reconcileFebrile,
+  reconcileMultiSymptom,
   reconcileJaundice,
   reconcileSubstance,
   hasBloodInStool,
+  hasBilateralOedema,
   deterministicReasoning,
   CLASSIFICATION_ENUM,
   type ProtocolEntry,
@@ -129,7 +132,9 @@ const SYS_EXTRACT =
   "7. Output UNKNOWN ONLY if the case has NO clinical signs matching any classification (e.g. a non-medical " +
   "question). A real clinical case must get a real classification, never UNKNOWN.\n" +
   '"action" = the treatment/next step for that classification. "reasoning" = one brief sentence. ' +
-  '"red_flags" = danger signs present in the case (may be empty). Emit ONLY the JSON object.' +
+  '"red_flags" = danger signs present in the case (may be empty). "confidence" = high if the signs ' +
+  'unambiguously match one classification, medium if it is the best of two plausible classes, low if the ' +
+  'signs are sparse, conflicting, or barely in scope. Emit ONLY the JSON object.' +
   INJECTION_CLAUSE;
 
 export interface TriageContext {
@@ -177,8 +182,14 @@ function parseExtract(text: string): unknown {
  * chunk, and grounding on a single chunk would hide the more-severe branch. The TOP hit is still what
  * gets cited. UNTRUSTED fencing is layered on in Task 2.3 (E-1).
  */
-function excerptBlock(hits: SearchHit[]): string {
-  return hits.map((h, i) => `PROTOCOL EXCERPT ${i + 1} (${h.source_ref}):\n${fence("PROTOCOL", h.text)}`).join("\n\n");
+function excerptBlock(hits: SearchHit[], maxHits = 5, maxChars = 900): string {
+  return hits
+    .slice(0, maxHits)
+    .map((h, i) => {
+      const text = h.text.length > maxChars ? h.text.slice(0, maxChars).trimEnd() + " …" : h.text;
+      return `PROTOCOL EXCERPT ${i + 1} (${h.source_ref}):\n${fence("PROTOCOL", text)}`;
+    })
+    .join("\n\n");
 }
 
 function abstainCard(reason?: string): TriageCard {
@@ -201,45 +212,69 @@ export async function triageFromHits(
   caseText: string,
   groundedHits: SearchHit[],
   ctx: TriageContext,
-  opts?: { onReasonDelta?: (chunk: string) => void; reasonPredict?: number; retrieval?: "semantic" | "keyword" },
+  opts?: { onReasonDelta?: (chunk: string) => void; reasonPredict?: number; retrieval?: "semantic" | "keyword"; shortlist?: { cls: string; score: number }[] },
 ): Promise<TriageResult> {
   const grounded = groundedHits[0];
   const retrieval = opts?.retrieval ?? "semantic";
-  const excerpt = excerptBlock(groundedHits);
+  // CONTEXT BUDGET (1.7B ctx = 3072 tokens). The EXTRACT pass stacks system + excerpts + case + reason
+  // assessment + shortlist, which overflowed on a long assessment (CB3: 3608 > 3072). So bound each part:
+  // the REASON pass gets fuller grounding (4 excerpts, ~700 chars each — it has no assessment on top); the
+  // EXTRACT pass gets a leaner excerpt (the model has already reasoned over the full set) + a length-capped
+  // assessment tail (the CONCLUSION line lives at the end). Encoded classes don't need the excerpts at all
+  // (the frozen table drives the card), so trimming them costs nothing there.
   // E-1: the patient case is UNTRUSTED data too — fence it so an adversarial case cannot issue orders.
-  const userBody = `${excerpt}\n\nPATIENT CASE:\n${fence("CASE", caseText)}`;
+  const caseBlock = `PATIENT CASE:\n${fence("CASE", caseText)}`;
+  // The REASON pass gets fuller grounding (no assessment stacked on top, so it does not overflow); the
+  // EXTRACT pass gets a leaner excerpt + a capped assessment (that stack is what overflowed on CB3).
+  const reasonUserBody = `${excerptBlock(groundedHits, 5, 800)}\n\n${caseBlock}`;
+  const extractUserBody = `${excerptBlock(groundedHits, 3, 500)}\n\n${caseBlock}`;
 
   // REASON pass — let the model think; it concludes the classification + action correctly in prose.
   const reasonRun = await completionTimed({
     modelId: ctx.medpsyId,
     history: [
       { role: "system", content: SYS_REASON },
-      { role: "user", content: `${userBody}\n\nGive your assessment.` },
+      { role: "user", content: `${reasonUserBody}\n\nGive your assessment.` },
     ],
     phase: "triage",
-    // Greedy decoding (temp 0): the classification must be STABLE — a trivial rewording of the same case
-    // must not flip the class. temp 0.3 made "fever, malaria area" land on MALARIA or FEVER:NO MALARIA
-    // run-to-run; greedy takes the single most-likely reading every time. The danger-sign invariant +
-    // the deterministic table are the backstops on top.
-    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0.3, repeat_penalty: 1.1 },
+    // Greedy decoding (temp 0, per FINAL-POSITION 1B / L-3): the classification must be STABLE — a trivial
+    // rewording of the same case must not flip the class, and the SAME case must not flip run-to-run.
+    // temp 0.3 (the prior value) made boundary cases flip between runs (e.g. "mosquito sickness" fever →
+    // MALARIA vs FEVER:NO MALARIA, or SAM oedema → classified vs UNKNOWN); greedy takes the single
+    // most-likely reading every time. The danger-sign invariant + the deterministic reconcilers/table are
+    // the backstops on top.
+    generationParams: { predict: opts?.reasonPredict ?? DEFAULT_REASON_PREDICT, temp: 0, repeat_penalty: 1.1 },
     onDelta: opts?.onReasonDelta,
   });
   // If the reason pass was token-capped mid-<think> (the E-5 demo path caps predict), stripThink
   // yields "" — fall back to the raw text (tags removed) so the extract pass still has the model's
   // reasoning to work from, rather than feeding it an empty assessment and failing the retry loop.
-  const assessment =
+  const assessmentFull =
     stripThink(reasonRun.text) || reasonRun.text.replace(/<\/?think>/g, "").trim() || reasonRun.text.trim();
+  // Cap the assessment fed to the extract pass (keep the TAIL — the "CONCLUSION: <class>" line is last) so
+  // a verbose reasoner cannot overflow the extract prefill. ~1400 chars ≈ well under the ctx budget.
+  const ASSESS_MAX_CHARS = 1400;
+  const assessment =
+    assessmentFull.length > ASSESS_MAX_CHARS ? "… " + assessmentFull.slice(-ASSESS_MAX_CHARS) : assessmentFull;
 
-  // MAIN-SYMPTOM ROUTING: restrict the extract enum to the detected symptom's classes so the model makes
-  // a within-symptom choice, not a 25-way one. The grammar cannot then emit a cross-symptom class.
-  const extractSchema = buildExtractJsonSchema(allowedClassesFor(caseText));
+  // PHASE 2 ROUTING: the extract grammar allows the FULL 27-class enum (retired the keyword sieve, which
+  // hard-locked the model out of the right class on a vocab-miss). The semantic router's shortlist is a
+  // PROMPT bias (below), not a grammar restriction — so the model still can, and usually does, pick a
+  // shortlisted class, but a lay/abbreviated case is never grammar-forced to UNKNOWN. The deterministic
+  // reconcilers + danger-sign severity gate are the backstop against a cross-symptom slip.
+  const extractSchema = buildExtractJsonSchema(CLASSIFICATION_ENUM);
+  // Rank-ordered shortlist injected into the extract prompt (soft bias). Empty on the degraded/no-embed
+  // path (no router), where the model classifies from the decision rules alone.
+  const shortlistBlock = opts?.shortlist?.length
+    ? `SEMANTIC SHORTLIST — the classes whose defining WHO signs are closest to THIS case, ranked most-likely first: ${opts.shortlist.map((s) => s.cls).join(", ")}. Prefer one of these unless the case's signs clearly match a different classification; you may still choose any class from the full list, or UNKNOWN.\n\n`
+    : "";
 
   // EXTRACT pass — GBNF-constrained json_schema → guaranteed shape; safeParse + retry.
   let lastErr = "";
   for (let attempt = 1; attempt <= MAX_EXTRACT_ATTEMPTS; attempt++) {
     const history: ChatMessage[] = [
       { role: "system", content: SYS_EXTRACT },
-      { role: "user", content: `${userBody}\n\nCLINICAL ASSESSMENT:\n${assessment}\n\nEmit the JSON now.` },
+      { role: "user", content: `${extractUserBody}\n\nCLINICAL ASSESSMENT:\n${assessment}\n\n${shortlistBlock}Emit the JSON now.` },
     ];
     if (attempt > 1) {
       history.push({
@@ -264,19 +299,28 @@ export async function triageFromHits(
       // (it misses blood on terse phrasings and can be talked out of it by an injected instruction).
       // This guard runs BEFORE the UNKNOWN abstain so a bloody-diarrhoea case never escalates to a
       // clinician-with-no-plan when WHO has a clear answer (ciprofloxacin).
+      // Bilateral pitting oedema = complicated SEVERE ACUTE MALNUTRITION (WHO), likewise unambiguous — so
+      // it also bypasses the UNKNOWN abstain (the model intermittently abstains on it).
       const bloodStool = hasBloodInStool(caseText);
-      if (normalizeClassification(ex.classification) === "UNKNOWN" && !bloodStool) {
+      const oedemaSam = hasBilateralOedema(caseText);
+      if (normalizeClassification(ex.classification) === "UNKNOWN" && !bloodStool && !oedemaSam) {
         return {
           card: abstainCard("This case does not match an encoded WHO IMCI or mhGAP classification, so Triage-0 escalates to a clinician rather than guess."),
           citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN",
         };
       }
       // Deterministic WHO corrections (stable where the model is boundary-flaky): no-test malaria, then
-      // blood→DYSENTERY + SEVERE-DEHYDRATION over-call guard.
+      // blood→DYSENTERY + SEVERE-DEHYDRATION over-call guard, then bilateral-oedema→SAM.
       let cls = reconcileMalaria(ex.classification, caseText);
       cls = reconcileDiarrhoea(cls, caseText, hasEmergencySign(caseText, ex.red_flags));
       if (bloodStool) cls = "DYSENTERY";
+      if (oedemaSam) cls = "SEVERE ACUTE MALNUTRITION"; // bilateral pitting oedema = complicated SAM, refer
       cls = reconcileEar(cls, caseText); // an ear problem stays an ear problem even with fever
+      cls = reconcileFebrile(cls, caseText); // "very severe FEBRILE disease" with no fever → severe pneumonia
+      // Multi-symptom precedence: if the model named a dehydration/ear co-problem but the case also has a
+      // pneumonia sign (→ respiratory leads) or is a fever+malaria case (→ malaria leads), restore the
+      // WHO antibiotic-lead PRIMARY. Runs after the ear/blood guards so DYSENTERY/MASTOIDITIS win first.
+      cls = reconcileMultiSymptom(cls, caseText);
       cls = reconcileJaundice(cls, caseText); // yellow palms/soles or <24h → SEVERE JAUNDICE
       cls = reconcileSubstance(cls, caseText); // alcohol/drug + dependence marker → substance use
       let entry = lookupProtocol(cls);
@@ -302,6 +346,7 @@ export async function triageFromHits(
             protocol_citation: { doc: docFor(entry.protocol), page: entry.citation.page, section: entry.citation.text },
             reasoning: deterministicReasoning(cls, entry),
             red_flags: ex.red_flags,
+            confidence: ex.confidence,
           }
         : {
             severity,
@@ -313,6 +358,7 @@ export async function triageFromHits(
             },
             reasoning: ex.reasoning,
             red_flags: ex.red_flags,
+            confidence: ex.confidence,
           };
       return { card, citationChunk: grounded, attempts: attempt, retrieval, classification: cls };
     }
@@ -330,21 +376,37 @@ export async function runTriage(
   ctx: TriageContext,
   opts?: { onReasonDelta?: (chunk: string) => void; reasonPredict?: number },
 ): Promise<TriageResult> {
-  const { groundedHits, retrieval } = await retrieveGrounding(caseText, ctx);
-  if (groundedHits.length === 0) {
+  // PHASE 2: the semantic class-router owns the abstain decision (off-domain gate), decoupled from the
+  // chunk-retrieval score. In degraded/no-embed mode there is no router, so fall back to the legacy
+  // "no chunk grounded → abstain" behaviour.
+  const degraded = config.residentMode === "fallback" || !ctx.embedId;
+  let shortlist: RouteResult["shortlist"] | undefined;
+  if (!degraded) {
+    const route = await routeCase(caseText, ctx.embedId!);
+    if (route.offDomain) {
+      return { card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" };
+    }
+    shortlist = route.shortlist;
+  }
+  const { groundedHits, retrieval, topHits } = await retrieveGrounding(caseText, ctx);
+  // Grounding is best-effort now (abstain already decided): use the threshold-passing hits when present,
+  // else the top chunks so an in-domain case still gets citation + reason excerpts.
+  const grounding = groundedHits.length ? groundedHits : topHits;
+  if (grounding.length === 0) {
+    // Only reachable in degraded mode (empty keyword result) or an empty store → abstain.
     return { card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" };
   }
   let result: TriageResult;
   try {
-    result = await triageFromHits(caseText, groundedHits, ctx, { ...opts, retrieval });
+    result = await triageFromHits(caseText, grounding, ctx, { ...opts, retrieval, shortlist });
   } catch {
     // Extract exhausted MAX_EXTRACT_ATTEMPTS invalid passes. Keep the "always a schema-valid card"
     // invariant for non-streaming callers: degrade to an abstain/escalate card rather than throw.
-    return { card: abstainCard(), citationChunk: groundedHits[0] ?? null, attempts: MAX_EXTRACT_ATTEMPTS, retrieval, classification: "" };
+    return { card: abstainCard(), citationChunk: grounding[0] ?? null, attempts: MAX_EXTRACT_ATTEMPTS, retrieval, classification: "" };
   }
   // Task #22: attach the grounded management plan (non-streaming path used by tests + runTriage callers).
   // The streaming server path assembles it separately so the card lands first (progressive enhancement).
-  result.card.plan = await assemblePlan(result.classification, result.card.severity, groundedHits, ctx);
+  result.card.plan = await assemblePlan(result.classification, result.card.severity, grounding, ctx);
   return result;
 }
 
@@ -356,7 +418,7 @@ export async function runTriage(
 export async function retrieveGrounding(
   caseText: string,
   ctx: TriageContext,
-): Promise<{ groundedHits: SearchHit[]; retrieval: "semantic" | "keyword" }> {
+): Promise<{ groundedHits: SearchHit[]; retrieval: "semantic" | "keyword"; topHits: SearchHit[] }> {
   const degraded = config.residentMode === "fallback" || !ctx.embedId;
   // Defense-in-depth: the GTE embedder has a 512-token context. Truncate the query so an over-long case
   // (from any caller, not just the length-capped /triage route) can never overflow the embedder. The
@@ -376,7 +438,14 @@ export async function retrieveGrounding(
   const passes = (h: SearchHit) =>
     degraded ? (usableTerms >= 2 ? h.score * usableTerms >= 2 : h.score > 0) : h.score >= config.ragScoreThreshold;
   const groundedHits = hits.filter(passes).slice(0, 5);
-  return { groundedHits, retrieval: degraded ? "keyword" : "semantic" };
+  // Phase 2: abstain is now decided by the semantic class-router (class-router.ts), NOT by the chunk
+  // score. So retrieval always exposes the best chunks as grounding/citation even when none clears the
+  // cosine threshold — an in-domain case whose lay/abbreviated phrasing embeds below threshold still gets
+  // a WHO citation panel + reason-pass excerpts. `topHits` is the best-effort fallback the callers use
+  // when `groundedHits` is empty. (For an ENCODED class the card citation comes from the frozen table, so
+  // a below-threshold grounding chunk never becomes the authoritative citation.)
+  const topHits = hits.slice(0, 5);
+  return { groundedHits, retrieval: degraded ? "keyword" : "semantic", topHits };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

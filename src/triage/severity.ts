@@ -51,7 +51,7 @@ export function classifyToSeverity(classification: string, action: string): Seve
 // DOWNGRADE a true EMERGENCY — clinically the worst error). NOTE: "chest indrawing" and "fast
 // breathing" are deliberately NOT here — alone they are the home-treatment (Yellow) band, not severe.
 const DANGER_RE =
-  /(unable to (?:drink|feed|breastfeed|wake|rouse)|not (?:been )?able to (?:drink|feed|breastfeed|wake)|cannot (?:drink|feed|wake)|can'?t (?:drink|feed|wake|keep)|won'?t (?:drink|feed|breastfeed|wake)|not (?:drinking|feeding|breastfeeding|waking|responding)|refus(?:es|ing) (?:to )?(?:drink|feed)|vomit(?:s|ing)? everything|convuls\w*|seizure|fits|lethargic|lethargy|drowsy|floppy|limp|unconscious|unrousable|unresponsive|very sleepy|won'?t wake|not waking|stridor|grunting|gasping|apno?ea|stopped breathing|not breathing|blue (?:lips|skin|tinge)|cyanos\w*|central cyanosis|severe respiratory distress|severe chest indrawing|coma|comatose|suicid\w*|self-?harm|harm (?:them|him|her)self|kill (?:them|him|her)self|not worth living|isn'?t worth living|wants? to die|better off dead|ending (?:it|his life|her life|their life)|take (?:his|her|their) own life|bleeding heavily|severe dehydration|very (?:sick|weak|ill))/gi;
+  /(unable to (?:drink|feed|breastfeed|wake|rouse)|not (?:been )?able to (?:drink|feed|breastfeed|wake)|cannot (?:drink|feed|wake)|can'?t (?:drink|feed|wake|keep)|won'?t (?:drink|feed|breastfeed|wake)|not (?:drinking|feeding|breastfeeding|waking|responding)|refus(?:es|ing) (?:to )?(?:drink|feed)|vomit(?:s|ing)? everything|convuls\w*|seizure|fits|lethargic|lethargy|drowsy|floppy|limp|unconscious|unrousable|unresponsive|very sleepy|won'?t wake|not waking|stridor|grunting|gasping|apno?ea|stopped breathing|not breathing|blue (?:lips|skin|tinge)|cyanos\w*|central cyanosis|severe respiratory distress|severe chest indrawing|coma|comatose|suicid\w*|self-?harm|harm (?:them|him|her)self|kill (?:them|him|her)self|not worth living|isn'?t worth living|wants? to die|better off dead|ending (?:it|his life|her life|their life)|take (?:his|her|their) own life|bleeding heavily|severe dehydration|very (?:sick|weak|ill)|oedema of both feet|swelling of both feet|both feet (?:are )?swollen|swollen feet|bilateral (?:pitting )?o?edema|pitting o?edema)/gi;
 
 // Pneumonia-sign presentation: chest indrawing / fast breathing / an explicit breaths-per-minute count.
 // The danger-sign gate ONLY downgrades when one of these IS present (a pure pneumonia presentation),
@@ -109,7 +109,13 @@ export function finalizeSeverity(
   if (band === "EMERGENCY") {
     const hay = `${caseText} ${redFlags.join(" ")}`;
     if (!hasEmergencySign(caseText, redFlags) && PNEUMONIA_SIGN_RE.test(hay)) return "URGENT";
+    return "EMERGENCY";
   }
+  // ESCALATE: a non-emergency band with a genuine general danger sign present is EMERGENCY (WHO: a danger
+  // sign means urgent referral). This mirrors finalizeSeverityV2 for the UNENCODED-class path (malnutrition
+  // and the mhGAP fallbacks), so complicated SAM with bilateral pitting oedema is not under-triaged as
+  // URGENT. Negation-aware via hasEmergencySign; over-triage is the safe direction for a triage tool.
+  if (hasEmergencySign(caseText, redFlags)) return "EMERGENCY";
   return band;
 }
 

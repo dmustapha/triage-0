@@ -20,6 +20,7 @@ import { orchestrator } from "./qvac/orchestrator.js";
 import { transcribeTimed, ttsTimed } from "./qvac/engine.js";
 import { pcmInt16ToWav } from "./qvac/audio.js";
 import { runTriage, retrieveGrounding, triageFromHits, assemblePlan, makeAbstainCard, type TriageContext } from "./triage/triage.js";
+import { routeCase, ensureClassPrototypes } from "./triage/class-router.js";
 import { readPerfRows, perfCsvPath } from "./qvac/perf-logger.js";
 import { chunkCount, citationMapHealthy } from "./rag/store.js";
 
@@ -37,6 +38,10 @@ const MAX_TTS_CHARS = 1000;
 // running throws "Cannot set new job". On one device with one model that is the honest physical limit:
 // it does one inference at a time. So serialize every inference endpoint through one queue. Concurrent
 // requests (e.g. a judge opening two tabs) wait their turn instead of colliding with a raw error.
+/** Native RAG store liveness, set at prewarm by a canonical query. `chunkCount()` reads the citation
+ *  SIDECAR (can report healthy while the native vector store is empty/wiped — the exact failure that made
+ *  every case abstain), so this is the real "does ragSearch return hits" signal, surfaced on /health. */
+let ragLive: boolean | null = null;
 let inferenceQueue: Promise<unknown> = Promise.resolve();
 function withInferenceLock<T>(fn: () => Promise<T>): Promise<T> {
   const result = inferenceQueue.then(fn, fn);
@@ -112,8 +117,28 @@ app.get("/health", (_req: Request, res: Response) => {
     medpsy: config.modelId,
     chunks: chunkCount(),
     citationMapHealthy: citationMapHealthy(),
+    // null until the prewarm self-test runs; true = native ragSearch returns hits; false = store wiped.
+    ragLive,
   });
 });
+
+// ── POST /debug/route ──────────────────────────────────────────────────────────────
+// Calibration-only: returns the semantic router's shortlist + best cosine + off-domain verdict for a
+// case, WITHOUT running the model. Gated behind TRIAGE0_DEBUG_ROUTE so it never ships in a demo build.
+if (process.env.TRIAGE0_DEBUG_ROUTE) {
+  app.post("/debug/route", async (req: Request, res: Response) => {
+    const caseText = String(req.body?.caseText ?? "").trim();
+    if (!caseText) return res.status(400).json({ error: "caseText is required." });
+    try {
+      const { embedId } = await triageContext();
+      if (!embedId) return res.status(503).json({ error: "no embeddings model (degraded mode)" });
+      const route = await withInferenceLock(() => routeCase(caseText, embedId));
+      res.json({ best: route.best, offDomain: route.offDomain, shortlist: route.shortlist });
+    } catch (err) {
+      clientError(res, err, "route debug failed");
+    }
+  });
+}
 
 // ── POST /transcribe ───────────────────────────────────────────────────────────────
 app.post("/transcribe", upload.single("audio"), async (req: Request, res: Response) => {
@@ -180,17 +205,32 @@ app.post("/triage", async (req: Request, res: Response) => {
     // and silent while waiting its turn, then runs normally.
     await withInferenceLock(() => withTimeout((async () => {
     const ctx = await triageContext();
-    const { groundedHits, retrieval } = await retrieveGrounding(caseText, ctx);
 
-    if (groundedHits.length === 0) {
-      // Abstain before the model is ever called.
+    // PHASE 2 abstain gate: the semantic class-router decides in/out-of-domain from the case's proximity
+    // to the 27 WHO class descriptors — NOT from the chunk-retrieval score (which false-abstained lay,
+    // abbreviated, multi-symptom, and non-English phrasings). A truly off-domain case (adult cardiac,
+    // non-medical, veterinary) matches no class well enough → abstain before the model is ever called.
+    const degraded = config.residentMode === "fallback" || !ctx.embedId;
+    const route = degraded ? null : await routeCase(caseText, ctx.embedId!);
+    if (route?.offDomain) {
+      send("abstain", { card: makeAbstainCard(), retrieval: "abstain" });
+      send("done", { ok: true });
+      return endStream();
+    }
+
+    const { groundedHits, retrieval, topHits } = await retrieveGrounding(caseText, ctx);
+    // Grounding is best-effort now (abstain already decided by the router): threshold-passing hits when
+    // present, else the top chunks so an in-domain case still gets a citation panel + reason excerpts.
+    const grounding = groundedHits.length ? groundedHits : topHits;
+    if (grounding.length === 0) {
+      // Only reachable in degraded mode (empty keyword result) or an empty store.
       send("abstain", { card: makeAbstainCard(), retrieval: "abstain" });
       send("done", { ok: true });
       return endStream();
     }
 
     // Citation lands first (< 2s) — the demo's early payoff.
-    const top = groundedHits[0];
+    const top = grounding[0];
     send("citation", {
       protocol: top.protocol,
       doc: top.citation.title,
@@ -204,8 +244,9 @@ app.post("/triage", async (req: Request, res: Response) => {
     // the deltas already include them; we surface a "reasoning…" affordance in the UI).
     const reasonStart = Date.now();
     let firstDeltaSent = false;
-    const result = await triageFromHits(caseText, groundedHits, ctx, {
+    const result = await triageFromHits(caseText, grounding, ctx, {
       retrieval,
+      shortlist: route?.shortlist,
       onReasonDelta: (chunk) => {
         if (!firstDeltaSent) {
           firstDeltaSent = true;
@@ -220,7 +261,7 @@ app.post("/triage", async (req: Request, res: Response) => {
     // Task #22: the grounded WHO management plan lands as a SEPARATE event AFTER the card, so the
     // severity + action + citation appear at their existing timing and the multi-component plan
     // progressively fills in. assemblePlan never throws (returns an empty plan on failure).
-    const plan = await assemblePlan(result.classification, result.card.severity, groundedHits, ctx);
+    const plan = await assemblePlan(result.classification, result.card.severity, grounding, ctx);
     send("plan", { plan });
     send("done", { ok: true });
     endStream();
@@ -300,10 +341,37 @@ export function startServer(port = config.port) {
     void withInferenceLock(async () => {
       try {
         const [medpsyId, embedId] = await Promise.all([orchestrator.getMedpsy(), orchestrator.getEmbeddings()]);
-        await retrieveGrounding("child fever cough fast breathing", { medpsyId, embedId });
-        process.stdout.write("[triage-0] models pre-warmed; first triage will be fast\n");
+        const warm = await retrieveGrounding("child fever cough fast breathing", { medpsyId, embedId });
+        // Store-liveness self-test (closes the Phase-1 blind spot): a canonical clinical query MUST return
+        // grounding hits. If the native vector store was wiped, this returns 0 while chunkCount() still
+        // reports the sidecar count — so warn LOUDLY rather than silently abstain on every case.
+        ragLive = warm.topHits.length > 0;
+        if (!ragLive) {
+          process.stderr.write(
+            "[triage-0] ⚠️  RAG STORE EMPTY: a canonical query returned 0 hits. The native store " +
+            "(~/.qvac/rag-hyperdb) is likely missing/wiped — every triage will abstain. Run `npm run ingest`.\n",
+          );
+        }
+        // Phase 2: embed the 27 class-router descriptors once now (single batched call) so the first
+        // /triage pays nothing for routing.
+        if (embedId) await ensureClassPrototypes(embedId);
+        process.stdout.write(`[triage-0] models pre-warmed; first triage will be fast (ragLive=${ragLive})\n`);
       } catch (err) {
         process.stderr.write(`[triage-0] pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
+      }
+      // L-5: warm the voice models too. The Supertonic TTS blob is a ~100s cold download on a fresh
+      // machine; the /tts and /transcribe routes cap loads at VOICE_TIMEOUT_MS (30s), so an un-cached
+      // first request always fails. Warming here downloads+caches both blobs and — in resident mode —
+      // keeps them loaded (~0.3GB) so the first live voice request is fast. Best-effort; voice is
+      // optional, so a failure here must never take down the text path. Skip via TRIAGE0_NO_VOICE_PREWARM.
+      if (!process.env.TRIAGE0_NO_VOICE_PREWARM) {
+        try {
+          await orchestrator.withStt("prewarm-stt", async () => { /* ensure loads + (resident) keeps STT */ });
+          await orchestrator.withTts("prewarm-tts", (id) => ttsTimed({ modelId: id, text: "Ready.", phase: "prewarm-tts" }));
+          process.stdout.write("[triage-0] voice models pre-warmed; first /tts and /transcribe will be fast\n");
+        } catch (err) {
+          process.stderr.write(`[triage-0] voice pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
+        }
       }
     });
   }
