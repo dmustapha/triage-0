@@ -13,6 +13,7 @@ import {
   ragChunk,
   textToSpeech,
   transcribe,
+  translate,
   unloadModel,
 } from "./sdk.js";
 import { logPerf } from "./perf-logger.js";
@@ -207,6 +208,22 @@ export async function ttsTimed(args: {
     totalTokens: pcm.length, durationMs: Math.round(ms),
   });
   return { pcm, sampleRate: TTS_SAMPLE_RATE, ms: Math.round(ms) };
+}
+
+/** NMT translation (Bergamot via the SDK bridge). Deterministic (temperature:0/beamsize:1 in the load config). */
+export async function translateTimed(args: {
+  modelId: string;
+  text: string;
+  phase: string;
+}): Promise<{ text: string; ms: number }> {
+  const t0 = performance.now();
+  const text = await translate({ modelId: args.modelId, text: args.text });
+  const ms = performance.now() - t0;
+  logPerf({
+    ts: new Date().toISOString(),
+    phase: args.phase, event: "translate", modelId: args.modelId, durationMs: Math.round(ms),
+  });
+  return { text, ms: Math.round(ms) };
 }
 
 // GTE_LARGE_FP16 has a 512-token embedding context. Cap chunks well under it (~300 tokens)

@@ -105,11 +105,21 @@
     var dx = (classification && sev !== "UNKNOWN")
       ? '<div class="dx"><span class="dx-label">Classification</span><span class="dx-name">' + esc(classification) + "</span></div>"
       : "";
+    // Phase 4: non-English cases are routed via an on-device English translation and the card is translated
+    // back. Flag it so the worker knows the text is machine-translated while the WHO citation stays English.
+    var TR_BANNER = {
+      fr: "Traduit du français — texte non textuel ; citation OMS en anglais",
+      es: "Traducido del español — texto no textual ; cita OMS en inglés",
+    };
+    var banner = card.translated
+      ? '<div class="tr-banner" role="note">' + esc(TR_BANNER[card.source_language] || "Translated — not verbatim WHO; citation in English") + "</div>"
+      : "";
     $("card").innerHTML =
       '<div class="verdict">' +
         '<div class="sev ' + sev + '">' + ico + sev + "</div>" +
         '<div class="sev-note">' + (SEV_NOTE[sev] || "") + "</div>" +
       "</div>" +
+      banner +
       dx +
       (card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
       '<div class="action">' + esc(card.action) + "</div>" +

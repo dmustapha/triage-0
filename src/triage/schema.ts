@@ -69,6 +69,11 @@ export const TriageCardSchema = z.object({
    *  future adaptive-thinking / self-consistency tail). Absent on the abstain path. */
   confidence: z.enum(["high", "medium", "low"]).optional(),
   plan: ManagementPlanSchema.optional(),
+  /** Phase 4 multilingual: set post-hoc (never model-authored) when the case was non-English. `translated`
+   *  true = action/reasoning/red_flags/plan are machine-translated to `source_language` (banner shows
+   *  "translated — not verbatim WHO"); the English `protocol_citation` is always kept for provenance. */
+  source_language: z.enum(["en", "fr", "es"]).optional(),
+  translated: z.boolean().optional(),
 });
 export type TriageCard = z.infer<typeof TriageCardSchema>;
 

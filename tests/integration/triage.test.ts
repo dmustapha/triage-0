@@ -22,6 +22,8 @@ const { chunkCount } = await import("../../src/rag/store.js");
 const { loadModelTimed, unloadModelTimed } = await import("../../src/qvac/engine.js");
 const { close } = await import("../../src/qvac/sdk.js");
 const { runTriage } = await import("../../src/triage/triage.js");
+const { orchestrator } = await import("../../src/qvac/orchestrator.js");
+const { translations } = await import("../../src/config.js");
 
 const ingested = chunkCount() > 0;
 const skip = ingested ? false : "store not ingested — run `npm run ingest` first";
@@ -54,11 +56,19 @@ function assertPlanCited(plan: any): number {
 
 let embedId = "";
 let medpsyId = "";
+let translationReady = false; // Phase 4: true iff the Bergamot fr>en model is available (cached / fetchable).
 
 before(async () => {
   if (!ingested) return;
   ({ modelId: embedId } = await loadModelTimed(registry.embeddings, "test"));
   ({ modelId: medpsyId } = await loadModelTimed(medpsySpec(), "test"));
+  // Warm one translation direction so the round-trip test can soft-skip when models are absent (offline).
+  try {
+    await orchestrator.ensure(translations["fr>en"], "test");
+    translationReady = true;
+  } catch {
+    translationReady = false;
+  }
 });
 after(async () => {
   if (medpsyId) await unloadModelTimed(medpsyId, "medpsy", "test");
@@ -138,4 +148,23 @@ test("off-domain case ABSTAINS (UNKNOWN, no invented citation)", { skip, timeout
   assert.equal(card.severity, "UNKNOWN");
   assert.equal(citationChunk, null, "no citation chunk when abstaining");
   assert.match(card.protocol_citation.doc, /no protocol/i, "citation is the explicit no-match, not a fabricated source");
+});
+
+// Phase 4 multilingual round-trip: a French pneumonia case is translated to English, routed on the same
+// English stack, then the card is translated back to French with the English WHO citation kept. Expected
+// values are from the WHO rule for the (translated) case — NOT observed. Soft-skips if Bergamot is absent.
+test("multilingual: FR pneumonia routes to PNEUMONIA and the card round-trips to French", { skip, timeout: 240_000 }, async () => {
+  if (!translationReady) { console.log("  (skipped: Bergamot fr>en model unavailable)"); return; }
+  const { card, classification } = await runTriage(
+    "Enfant de 2 ans, toux depuis 3 jours, respiration rapide à 54 par minute, tirage sous-costal, éveillé et boit bien, aucun signe de danger.",
+    { medpsyId, embedId },
+  );
+  // Routing (English internally) → WHO PNEUMONIA (fast breathing 54/min, no danger sign) at URGENT.
+  assert.match(String(classification).toUpperCase(), /^PNEUMONIA$/, `FR pneumonia routes to PNEUMONIA (got ${classification})`);
+  assert.equal(card.severity, "URGENT");
+  // Output round-trip: flagged translated, source French, action rendered in French, citation kept English.
+  assert.equal(card.source_language, "fr");
+  assert.equal(card.translated, true);
+  assert.match(card.action, /amoxicilline|jour|orale/i, `action is French (got "${card.action}")`);
+  assert.match(card.protocol_citation.doc, /IMCI/i, "the WHO citation stays English for provenance");
 });
