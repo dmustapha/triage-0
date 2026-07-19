@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-07-18T17:42:15.632Z",
+  "timestamp": "2026-07-19T13:18:36.995Z",
   "total": 29,
-  "passed": 28,
-  "failed": 1,
+  "passed": 29,
+  "failed": 0,
   "errors": 0,
-  "passRate": "96.6",
+  "passRate": "100.0",
   "results": [
     {
       "name": "R1 — pneumonia home treatment",
@@ -21,7 +21,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 3374,
+      "ttftMs": 4314,
       "error": null,
       "passed": true,
       "failures": [],
@@ -42,7 +42,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 3355,
+      "ttftMs": 3269,
       "error": null,
       "passed": true,
       "failures": [],
@@ -60,7 +60,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 3469,
+      "ttftMs": 3467,
       "error": null,
       "passed": true,
       "failures": [],
@@ -77,7 +77,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 2963,
+      "ttftMs": 2972,
       "error": null,
       "passed": true,
       "failures": []
@@ -96,7 +96,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.45",
-      "ttftMs": 3272,
+      "ttftMs": 3260,
       "error": null,
       "passed": true,
       "failures": [],
@@ -117,7 +117,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3265,
+      "ttftMs": 3256,
       "error": null,
       "passed": true,
       "failures": [],
@@ -135,7 +135,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3384,
+      "ttftMs": 3259,
       "error": null,
       "passed": true,
       "failures": [],
@@ -156,7 +156,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3489,
+      "ttftMs": 3385,
       "error": null,
       "passed": true,
       "failures": [],
@@ -176,7 +176,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.46",
-      "ttftMs": 3369,
+      "ttftMs": 3263,
       "error": null,
       "passed": true,
       "failures": [],
@@ -195,7 +195,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.46",
-      "ttftMs": 3475,
+      "ttftMs": 3263,
       "error": null,
       "passed": true,
       "failures": [],
@@ -216,7 +216,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3573,
+      "ttftMs": 3571,
       "error": null,
       "passed": true,
       "failures": [],
@@ -237,7 +237,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.32",
-      "ttftMs": 3669,
+      "ttftMs": 3573,
       "error": null,
       "passed": true,
       "failures": [],
@@ -255,12 +255,10 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3570,
+      "ttftMs": 3580,
       "error": null,
-      "passed": false,
-      "failures": [
-        "classification: should NOT be MALARIA, got FEVER: NO MALARIA"
-      ]
+      "passed": true,
+      "failures": []
     },
     {
       "name": "E1 — ear infection",
@@ -276,7 +274,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3480,
+      "ttftMs": 3273,
       "error": null,
       "passed": true,
       "failures": []
@@ -295,7 +293,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3076,
+      "ttftMs": 2852,
       "error": null,
       "passed": true,
       "failures": [],
@@ -317,7 +315,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.34",
-      "ttftMs": 3376,
+      "ttftMs": 3381,
       "error": null,
       "passed": true,
       "failures": [],
@@ -333,7 +331,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.46",
-      "ttftMs": 4094,
+      "ttftMs": 3577,
       "error": null,
       "passed": true,
       "failures": [],
@@ -354,7 +352,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.41",
-      "ttftMs": 3586,
+      "ttftMs": 2859,
       "error": null,
       "passed": true,
       "failures": [],
@@ -375,7 +373,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.43",
-      "ttftMs": 2258,
+      "ttftMs": 1940,
       "error": null,
       "passed": true,
       "failures": [],
@@ -391,7 +389,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.139",
-      "ttftMs": 3965,
+      "ttftMs": 3275,
       "error": null,
       "passed": true,
       "failures": [],
@@ -411,7 +409,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.67",
-      "ttftMs": 3671,
+      "ttftMs": 3171,
       "error": null,
       "passed": true,
       "failures": [],
@@ -428,7 +426,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.121",
-      "ttftMs": 1952,
+      "ttftMs": 1643,
       "error": null,
       "passed": true,
       "failures": [],
@@ -481,7 +479,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 4077,
+      "ttftMs": 3261,
       "error": null,
       "passed": true,
       "failures": []
@@ -501,7 +499,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.70",
-      "ttftMs": 4491,
+      "ttftMs": 3463,
       "error": null,
       "passed": true,
       "failures": []
@@ -521,26 +519,24 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.17",
-      "ttftMs": 4188,
+      "ttftMs": 3162,
       "error": null,
       "passed": true,
       "failures": []
     },
     {
       "name": "X5 — repetition stress",
-      "classification": "VERY SEVERE FEBRILE DISEASE",
-      "severity": "EMERGENCY",
-      "medicines": [
-        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
-      ],
+      "classification": "FEVER: NO MALARIA",
+      "severity": "ROUTINE",
+      "medicines": [],
       "planComponents": [
-        "medicines",
         "supportive",
+        "home_care",
         "return_now",
-        "referral"
+        "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.30",
-      "ttftMs": 4198,
+      "ttftMs": 3171,
       "error": null,
       "passed": true,
       "failures": []

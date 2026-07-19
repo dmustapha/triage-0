@@ -623,6 +623,31 @@ export const PROTOCOL_TABLE: Record<string, ProtocolEntry> = {
     follow_up: { text: "schedule a follow-up appointment", page: 21 },
     referral: { text: "CONSULT A SPECIALIST", page: 34 },
   },
+  // mhGAP OTH module (Other Significant Mental Health Complaints, p.149–156). The class a post-trauma
+  // anxiety/PTSD presentation lands on once depression and the priority conditions are ruled out. mhGAP is
+  // explicit that this is NOT a drug class — "DO NOT prescribe anti-anxiety or antidepressant medicines
+  // (unless advised by a specialist)" — so medicines is empty by design; management is psychosocial +
+  // specialist referral if PTSD is suspected. Every line is verbatim ⊂ the OTH chunk at its cited page.
+  "STRESS / PTSD": {
+    protocol: "mhGAP",
+    colour: null,
+    severity: "URGENT",
+    action: { text: "reduce stress and strengthen social supports as described in Essential care and practice", page: 153 },
+    citation: { text: "If post-traumatic stress disorder (PTSD) is suspected, consult a specialist for further assessment and management", page: 155 },
+    medicines: [],
+    supportive: [
+      { text: "Teach stress management such as relaxation techniques", page: 153 },
+      { text: "DO NOT pressure the person to talk about the event", page: 154 },
+      { text: "DO NOT prescribe anti-anxiety or antidepressant medicines", page: 153 },
+    ],
+    home_care: [],
+    return_now: [
+      { text: "if, at any time, their symptoms worsen", page: 156 },
+      { text: "If one has thoughts of self-harm/suicide, seek help immediately from a trusted family member, friend or health care provider", page: 146 },
+    ],
+    follow_up: { text: "Ask the person to return in 2-4 weeks if their symptoms do not improve", page: 156 },
+    referral: { text: "consult a specialist for further assessment and management", page: 155 },
+  },
 };
 
 /** The exact classification strings the model may emit (enum-constrained in schema.ts), plus the
@@ -657,6 +682,7 @@ export const CLASSIFICATION_ENUM: string[] = [
   "PSYCHOSIS",
   "EPILEPSY",
   "SELF-HARM / SUICIDE",
+  "STRESS / PTSD",
   // mhGAP — fallback
   "BIPOLAR DISORDER",
   "DEMENTIA",
@@ -995,6 +1021,58 @@ export function hasBilateralOedema(caseText: string): boolean {
 }
 
 /**
+ * Does the case carry genuine mental-health / mhGAP presentation language? Covers the full mhGAP vocabulary
+ * — mood/psychosis/epilepsy/substance/dementia PLUS the OTH trauma-stress-anxiety terms (PTSD, flashbacks,
+ * nightmares, hypervigilance, panic, grief) that the STRESS / PTSD class routes on. DELIBERATELY EXCLUDES
+ * words that are ALSO physical IMCI signs ("restless"/"irritable" are dehydration signs; "tired" is anaemia)
+ * so a purely physical case (e.g. a febrile diarrhoea toddler) does NOT read as mental. Used by
+ * reconcilePhysicalOverMental to tell a real mental case from a model hallucination.
+ */
+export function hasMentalHealthLanguage(caseText: string): boolean {
+  return /\bmood\b|depress|\bsad\b|low mood|loss of interest|no interest|anhedonia|hopeless|worthless|\bguilt|\bvoices?\b|hearing (?:a )?voice|hallucin|delusion|psychos|paranoi|spying|poisoned|disorganis|\bmania\b|manic|elated|grandiose|withdrawn|tearful|insomnia|can'?t sleep|not sleeping|sleepless|trouble sleeping|convuls|seizure|epilep|\bfits?\b|jerk\w*|loss of awareness|loss of consciousness|staring spell|absence seizure|suicid|self-?\s?harm|harm (?:him|her|them)self|kill (?:him|her|them)self|overdose|not worth living|wants? to die|better off dead|substance|\balcohol\b|drug use|withdrawal|craving|addict|dependen|dementia|memory loss|forgetful|\btrauma|ptsd|post-?traumatic|flashback|nightmare|intrusive memories|jumpy|on edge|hypervigilan|startle|anxious|anxiety|\bpanic|nervous|stressed|distress|\bgrief\b|grieving|bereave|mourning|avoids? (?:going|leaving|people|reminders|crowds)|\bassault|\babuse\b|phobia/i.test(
+    caseText,
+  );
+}
+
+/**
+ * SAFETY reconciler (runs LAST, after all physical guards). Non-negated self-harm / suicide language is the
+ * priority mental-health classification — mhGAP: "IF THERE IS IMMINENT RISK OF SUICIDE, ASSESS AND MANAGE
+ * before continuing." Forces SELF-HARM / SUICIDE from any mild/urgent OR model-UNKNOWN pick (the retired
+ * keyword sieve used to gate this; the semantic router has no such backstop, so a trauma survivor who is
+ * ALSO suicidal could otherwise land on the non-emergency STRESS / PTSD or DEPRESSION plan, missing the
+ * "do not leave the person alone / remove access to means" instructions). Yields ONLY to a physical IMCI
+ * EMERGENCY (airway/breathing/circulation first). Negation-aware via hasSelfHarmLanguage.
+ */
+export function reconcileSelfHarm(classification: string, caseText: string): string {
+  if (!hasSelfHarmLanguage(caseText)) return classification;
+  const entry = PROTOCOL_TABLE[normalizeClassification(classification)];
+  if (entry?.protocol === "IMCI" && entry.severity === "EMERGENCY") return classification;
+  return "SELF-HARM / SUICIDE";
+}
+
+/**
+ * Deterministic physical-over-mental veto. The 1.7B occasionally names a mhGAP MENTAL class (e.g. DEPRESSION)
+ * for a purely PHYSICAL case — an unstable extract pick the router never suggested (its shortlist for such a
+ * case is all-physical). WHO/mhGAP is explicit that mental complaints are only considered AFTER ruling out a
+ * physical cause. So: if the model picked a mhGAP class, the case has NO mental-health language, AND a clear
+ * IMCI physical sign is present, re-point to the physical class the deterministic detectors identify (same
+ * precedence order as reconcileMultiSymptom). NEVER touches SELF-HARM / SUICIDE (that is handled, and forced,
+ * by reconcileSelfHarm). A genuine mental case (mental language present) or one with no hard physical sign is
+ * left untouched — so a real DEPRESSION / STRESS-PTSD / comorbid case never gets down-routed.
+ */
+export function reconcilePhysicalOverMental(classification: string, caseText: string): string {
+  const norm = normalizeClassification(classification);
+  const entry = PROTOCOL_TABLE[norm];
+  if (entry?.protocol !== "mhGAP" || norm === "SELF-HARM / SUICIDE") return classification;
+  if (hasMentalHealthLanguage(caseText)) return classification;
+  if (hasPneumoniaSign(caseText)) return "SEVERE PNEUMONIA OR VERY SEVERE DISEASE";
+  if (hasBloodInStool(caseText)) return "DYSENTERY";
+  if (hasBilateralOedema(caseText)) return "SEVERE ACUTE MALNUTRITION";
+  if (hasFeverMalariaContext(caseText)) return "MALARIA";
+  return classification;
+}
+
+/**
  * Deterministic, class-DEFINING rationale for the card's "Why" line on encoded classes. The design is
  * "the table is truth, the model only parses" — so the displayed reasoning must come from the final
  * classification, NOT the model's free text. The model's prose is stale after a deterministic reconcile
@@ -1032,6 +1110,7 @@ const CLASS_REASONING: Record<string, string> = {
   "DEMENTIA": "Progressive memory and functioning decline → dementia; carer training and practical support, manage other conditions, and consult a specialist.",
   "DISORDERS DUE TO SUBSTANCE USE": "Harmful alcohol or drug use → psychoeducation, assess needs, reduce access, and consult a specialist.",
   "SELF-HARM / SUICIDE": "Thoughts, a plan, or an act of self-harm → do not leave the person alone; remove access to means and consult urgently.",
+  "STRESS / PTSD": "Anxiety, hyperarousal, avoidance, or re-experiencing (nightmares/flashbacks) after an extreme stressor, with no imminent self-harm → mhGAP other significant mental health complaint; psychosocial support and stress management, no anti-anxiety/antidepressant medicine unless a specialist advises, and consult a specialist if PTSD is suspected.",
 };
 
 export function deterministicReasoning(classification: string, entry: ProtocolEntry): string {

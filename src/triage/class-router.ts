@@ -100,6 +100,8 @@ export const CLASS_PROTOTYPES: Record<string, string> = {
     "Older adult with progressive memory loss, confusion, and decline in the ability to carry out daily activities; dementia.",
   "DISORDERS DUE TO SUBSTANCE USE":
     "Person with harmful or dependent use of alcohol or drugs — cannot cut down or stop, drinks or uses daily, withdrawal shakes, cravings; substance use disorder.",
+  "STRESS / PTSD":
+    "Adult, weeks or a month after an extreme stressor or traumatic event (physical or sexual violence, a violent assault, a major accident, bereavement or major loss), with recurring frightening dreams, nightmares, flashbacks or intrusive memories of the event, deliberate avoidance of reminders, feeling jumpy and constantly on edge, excessive alertness to danger, and feeling anxious, tense or stressed, but no thoughts of self-harm; post-traumatic stress or an other significant mental health complaint due to stress.",
 };
 
 /**
@@ -118,7 +120,7 @@ const SYMPTOM_GROUPS: { group: string; order: number; classes: string[] }[] = [
   { group: "ear", order: 6, classes: ["MASTOIDITIS", "ACUTE EAR INFECTION", "CHRONIC EAR INFECTION"] },
   { group: "diarrhoea", order: 7, classes: ["SEVERE DEHYDRATION", "SOME DEHYDRATION", "NO DEHYDRATION", "PERSISTENT DIARRHOEA", "SEVERE PERSISTENT DIARRHOEA"] },
   { group: "jaundice", order: 8, classes: ["SEVERE JAUNDICE", "JAUNDICE"] },
-  { group: "mental", order: 9, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE"] },
+  { group: "mental", order: 9, classes: ["DEPRESSION", "PSYCHOSIS", "EPILEPSY", "SELF-HARM / SUICIDE", "BIPOLAR DISORDER", "DEMENTIA", "DISORDERS DUE TO SUBSTANCE USE", "STRESS / PTSD"] },
 ];
 /** class → {group, order} lookup, built once from SYMPTOM_GROUPS. Exported for the structural guard test. */
 export const CLASS_GROUP: Record<string, { group: string; order: number }> = Object.fromEntries(

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-18T17:30:30.806Z",
+  "timestamp": "2026-07-19T13:08:09.296Z",
   "total": 26,
   "passed": 23,
   "failed": 3,
@@ -21,7 +21,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.50",
-      "ttftMs": 4091,
+      "ttftMs": 4560,
       "error": null,
       "passed": true,
       "failures": [],
@@ -43,7 +43,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.61",
-      "ttftMs": 3159,
+      "ttftMs": 3272,
       "error": null,
       "passed": true,
       "failures": [],
@@ -65,7 +65,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3155,
+      "ttftMs": 3275,
       "error": null,
       "passed": true,
       "failures": [],
@@ -86,7 +86,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 1627,
+      "ttftMs": 1653,
       "error": null,
       "passed": true,
       "failures": [],
@@ -107,7 +107,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.45",
-      "ttftMs": 2862,
+      "ttftMs": 2963,
       "error": null,
       "passed": true,
       "failures": [],
@@ -124,7 +124,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.11",
-      "ttftMs": 3361,
+      "ttftMs": 3478,
       "error": null,
       "passed": true,
       "failures": [],
@@ -146,7 +146,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3376,
+      "ttftMs": 3476,
       "error": null,
       "passed": true,
       "failures": [],
@@ -168,7 +168,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3573,
+      "ttftMs": 3671,
       "error": null,
       "passed": true,
       "failures": [],
@@ -189,7 +189,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3581,
+      "ttftMs": 3580,
       "error": null,
       "passed": true,
       "failures": [],
@@ -210,7 +210,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3263,
+      "ttftMs": 3366,
       "error": null,
       "passed": true,
       "failures": [],
@@ -232,7 +232,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3262,
+      "ttftMs": 3365,
       "error": null,
       "passed": true,
       "failures": [],
@@ -253,7 +253,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3371,
+      "ttftMs": 3472,
       "error": null,
       "passed": true,
       "failures": [],
@@ -274,7 +274,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3361,
+      "ttftMs": 3472,
       "error": null,
       "passed": true,
       "failures": [],
@@ -297,7 +297,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.34",
-      "ttftMs": 3467,
+      "ttftMs": 3606,
       "error": null,
       "passed": true,
       "failures": [],
@@ -319,7 +319,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3574,
+      "ttftMs": 4079,
       "error": null,
       "passed": true,
       "failures": [],
@@ -340,7 +340,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.32",
-      "ttftMs": 3161,
+      "ttftMs": 3466,
       "error": null,
       "passed": true,
       "failures": [],
@@ -361,7 +361,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3067,
+      "ttftMs": 3466,
       "error": null,
       "passed": true,
       "failures": [],
@@ -382,7 +382,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.55",
-      "ttftMs": 3052,
+      "ttftMs": 3260,
       "error": null,
       "passed": true,
       "failures": [],
@@ -405,7 +405,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.10",
-      "ttftMs": 3472,
+      "ttftMs": 3878,
       "error": null,
       "passed": true,
       "failures": [],
@@ -414,16 +414,20 @@
     },
     {
       "name": "RA5 — recurrent wheeze no danger sign (cough or cold / non-severe)",
-      "classification": "COUGH OR COLD",
-      "severity": "ROUTINE",
-      "medicines": [],
+      "classification": "PNEUMONIA",
+      "severity": "URGENT",
+      "medicines": [
+        "Amoxicillin"
+      ],
       "planComponents": [
+        "medicines",
+        "supportive",
         "home_care",
         "return_now",
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 2770,
+      "ttftMs": 2857,
       "error": null,
       "passed": true,
       "failures": [],
@@ -443,7 +447,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3167,
+      "ttftMs": 3265,
       "error": null,
       "passed": true,
       "failures": [],
@@ -451,16 +455,23 @@
       "expectedClassification": {}
     },
     {
-      "name": "RA7 — mhGAP anxiety/PTSD (gap — abstain acceptable today)",
-      "classification": "UNKNOWN",
-      "severity": "UNKNOWN",
+      "name": "RA7 — mhGAP anxiety/PTSD (encoded: STRESS / PTSD)",
+      "classification": "STRESS / PTSD",
+      "severity": "URGENT",
       "medicines": [],
-      "planComponents": [],
-      "citation": "",
-      "ttftMs": 0,
+      "planComponents": [
+        "supportive",
+        "return_now",
+        "follow_up",
+        "referral"
+      ],
+      "citation": "WHO mhGAP Intervention Guide v2.0 p.155",
+      "ttftMs": 2648,
       "error": null,
       "passed": true,
-      "failures": []
+      "failures": [],
+      "expectedSeverity": "URGENT",
+      "expectedClassification": {}
     },
     {
       "name": "NE1 — FR pneumonia (toux, respiration rapide)",
@@ -477,7 +488,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.40",
-      "ttftMs": 3983,
+      "ttftMs": 3863,
       "error": null,
       "passed": true,
       "failures": [],
@@ -513,7 +524,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.33",
-      "ttftMs": 1759,
+      "ttftMs": 1736,
       "error": null,
       "passed": false,
       "failures": [

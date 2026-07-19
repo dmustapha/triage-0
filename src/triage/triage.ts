@@ -33,8 +33,11 @@ import {
   reconcileMultiSymptom,
   reconcileJaundice,
   reconcileSubstance,
+  reconcileSelfHarm,
+  reconcilePhysicalOverMental,
   hasBloodInStool,
   hasBilateralOedema,
+  hasSelfHarmLanguage,
   deterministicReasoning,
   CLASSIFICATION_ENUM,
   type ProtocolEntry,
@@ -287,6 +290,10 @@ export async function triageFromHits(
       history,
       phase: "triage",
       responseFormat: { type: "json_schema", json_schema: { name: "triage_extract", schema: extractSchema } },
+      // Greedy decoding (temp 0) — the classification pick must be STABLE run-to-run, like the reason pass.
+      // Without it the extract sampled DEPRESSION for a purely-physical case on some runs (MS2). The GBNF
+      // enum grammar still constrains the output; temp 0 just removes the sampling noise on the boundary.
+      generationParams: { temp: 0 },
     });
     const parsed = TriageExtractSchema.safeParse(parseExtract(extractRun.text));
     if (parsed.success) {
@@ -303,7 +310,10 @@ export async function triageFromHits(
       // it also bypasses the UNKNOWN abstain (the model intermittently abstains on it).
       const bloodStool = hasBloodInStool(caseText);
       const oedemaSam = hasBilateralOedema(caseText);
-      if (normalizeClassification(ex.classification) === "UNKNOWN" && !bloodStool && !oedemaSam) {
+      // Self-harm/suicide language is a mhGAP emergency that must NEVER abstain (the model intermittently
+      // returns UNKNOWN on it) — bypass the abstain gate like blood/oedema; reconcileSelfHarm then forces it.
+      const selfHarm = hasSelfHarmLanguage(caseText);
+      if (normalizeClassification(ex.classification) === "UNKNOWN" && !bloodStool && !oedemaSam && !selfHarm) {
         return {
           card: abstainCard("This case does not match an encoded WHO IMCI or mhGAP classification, so Triage-0 escalates to a clinician rather than guess."),
           citationChunk: grounded, attempts: attempt, retrieval, classification: "UNKNOWN",
@@ -323,6 +333,13 @@ export async function triageFromHits(
       cls = reconcileMultiSymptom(cls, caseText);
       cls = reconcileJaundice(cls, caseText); // yellow palms/soles or <24h → SEVERE JAUNDICE
       cls = reconcileSubstance(cls, caseText); // alcohol/drug + dependence marker → substance use
+      // Physical-over-mental veto: the model named a mhGAP mental class for a case with NO mental-health
+      // language but a clear IMCI physical sign → re-point to the physical class (WHO rules out a physical
+      // cause before a mental one). Never touches SELF-HARM / SUICIDE.
+      cls = reconcilePhysicalOverMental(cls, caseText);
+      // SAFETY (last): non-negated self-harm/suicide language forces SELF-HARM / SUICIDE (yields only to a
+      // physical IMCI EMERGENCY), so the emergency "do not leave alone / remove means" plan is never missed.
+      cls = reconcileSelfHarm(cls, caseText);
       let entry = lookupProtocol(cls);
       const severity = entry
         ? finalizeSeverityV2(cls, ex.action, caseText, ex.red_flags)
