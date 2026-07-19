@@ -59,6 +59,9 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
 .verdict .sev.SELF_CARE{ background:var(--self-care); color:#04121d; }
 .verdict .sev.UNKNOWN{ background:var(--unknown); color:#0c0c0c; }
 .sev-note{ padding:13px 20px; background:var(--surf-2); font-size:15px; color:var(--mut); }
+/* Phase 4: machine-translation notice for FR/ES cases. The WHO citation stays English (shown below). */
+.tr-banner{ margin:0 0 12px; padding:8px 12px; font-size:13px; line-height:1.4; color:var(--accent);
+  background:var(--accent-wash); border:1px solid var(--accent-line); border-radius:6px; }
 /* WHO classification — shown before the management plan (what it is, then what to do). */
 .dx{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); }
 .dx-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }

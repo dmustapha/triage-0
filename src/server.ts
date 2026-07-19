@@ -15,7 +15,7 @@ import { readFileSync, existsSync, writeFileSync, rmSync, mkdtempSync } from "no
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { config } from "./config.js";
+import { config, translations } from "./config.js";
 import { orchestrator } from "./qvac/orchestrator.js";
 import { transcribeTimed, ttsTimed } from "./qvac/engine.js";
 import { translateCaseToEnglish, translateCardAndPlanFromEnglish, translatePlanFromEnglish } from "./qvac/translation.js";
@@ -43,6 +43,9 @@ const MAX_TTS_CHARS = 1000;
  *  SIDECAR (can report healthy while the native vector store is empty/wiped — the exact failure that made
  *  every case abstain), so this is the real "does ragSearch return hits" signal, surfaced on /health. */
 let ragLive: boolean | null = null;
+/** Phase 4: true once the 4 Bergamot NMT models are warmed (prewarm). null until prewarm runs; false if the
+ *  warm-up failed (non-English cases still work, but the first one pays a cold model load). Surfaced on /health. */
+let translationReady: boolean | null = null;
 let inferenceQueue: Promise<unknown> = Promise.resolve();
 function withInferenceLock<T>(fn: () => Promise<T>): Promise<T> {
   const result = inferenceQueue.then(fn, fn);
@@ -120,6 +123,8 @@ app.get("/health", (_req: Request, res: Response) => {
     citationMapHealthy: citationMapHealthy(),
     // null until the prewarm self-test runs; true = native ragSearch returns hits; false = store wiped.
     ragLive,
+    // Phase 4: null until translation prewarm runs; true = the 4 Bergamot models are resident (FR/ES fast).
+    translationReady,
   });
 });
 
@@ -383,6 +388,22 @@ export function startServer(port = config.port) {
           process.stdout.write("[triage-0] voice models pre-warmed; first /tts and /transcribe will be fast\n");
         } catch (err) {
           process.stderr.write(`[triage-0] voice pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
+        }
+      }
+      // Phase 4: warm the 4 Bergamot NMT models (fr<->en, es<->en). Each is a ~30MB registry blob; loading
+      // them here (SDK caches to ~/.qvac and, in resident mode, keeps them) means the FIRST non-English
+      // triage does not pay a cold model load mid-demo. Sequential (single-job engine). Best-effort:
+      // translation degrades to English routing on failure, so a warm-up miss must never fail startup.
+      // Skip via TRIAGE0_NO_TRANSLATION_PREWARM.
+      if (!process.env.TRIAGE0_NO_TRANSLATION_PREWARM) {
+        try {
+          for (const key of Object.keys(translations)) {
+            await orchestrator.ensure(translations[key], "prewarm-translate");
+          }
+          translationReady = true;
+          process.stdout.write("[triage-0] translation models pre-warmed; first FR/ES triage will be fast\n");
+        } catch (err) {
+          process.stderr.write(`[triage-0] translation pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
         }
       }
     });
