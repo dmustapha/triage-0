@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { config } from "../../src/config.js";
-import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, reconcileFebrile, reconcileMultiSymptom, hasPneumoniaSign, hasFeverMalariaContext, hasBilateralOedema, reconcileJaundice, reconcileSubstance, isPersistentDiarrhoea, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
+import { PROTOCOL_TABLE, CLASSIFICATION_ENUM, reconcileMalaria, reconcileDiarrhoea, reconcileEar, reconcileFebrile, reconcileMultiSymptom, hasPneumoniaSign, hasFeverMalariaContext, hasBilateralOedema, reconcileJaundice, reconcileSubstance, reconcileSelfHarm, reconcilePhysicalOverMental, hasMentalHealthLanguage, isPersistentDiarrhoea, allowedClassesFor, hasSelfHarmLanguage, type GroundedLine } from "../../src/triage/protocol-table.js";
 
 const mapPath = config.citationMapPath;
 const dosePath = new URL("../../data/rag/dose-tables.txt", import.meta.url).pathname;
@@ -263,4 +263,42 @@ test("encoded rarer conditions: persistent diarrhoea, jaundice, substance-use re
   // substance-use dependence pin
   assert.equal(reconcileSubstance("BIPOLAR DISORDER", "drinking alcohol heavily every day, cannot cut down, withdrawal shakes"), "DISORDERS DUE TO SUBSTANCE USE");
   assert.equal(reconcileSubstance("DEPRESSION", "low mood, mother drinks alcohol occasionally"), "DEPRESSION");
+});
+
+test("reconcileSelfHarm: non-negated self-harm language forces SELF-HARM / SUICIDE (yields to physical emergency)", () => {
+  // A mild/urgent mental pick with genuine self-harm language → forced to the emergency class.
+  assert.equal(reconcileSelfHarm("DEPRESSION", "low mood for weeks, says life isn't worth living and thought about ending it"), "SELF-HARM / SUICIDE");
+  assert.equal(reconcileSelfHarm("STRESS / PTSD", "flashbacks after an assault, now says he wants to die"), "SELF-HARM / SUICIDE");
+  // Model abstained (UNKNOWN) but self-harm language present → still forced (never abstains on self-harm).
+  assert.equal(reconcileSelfHarm("UNKNOWN", "now has active thoughts of suicide with a plan to act tonight"), "SELF-HARM / SUICIDE");
+  // Negated / absent self-harm language → untouched (no false escalation).
+  assert.equal(reconcileSelfHarm("STRESS / PTSD", "nightmares and flashbacks, jumpy, no thoughts of self-harm"), "STRESS / PTSD");
+  assert.equal(reconcileSelfHarm("DEPRESSION", "low mood, poor sleep, denies any suicidal thoughts"), "DEPRESSION");
+  // Yields to a physical IMCI EMERGENCY (airway/breathing/circulation take precedence).
+  assert.equal(reconcileSelfHarm("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "not breathing, blue lips; carer mentions she wants to die"), "SEVERE PNEUMONIA OR VERY SEVERE DISEASE");
+});
+
+test("hasMentalHealthLanguage: mental/trauma vocab true; physical-only false (restless/irritable excluded)", () => {
+  assert.ok(hasMentalHealthLanguage("low mood, hopeless, loss of interest"));
+  assert.ok(hasMentalHealthLanguage("nightmares and flashbacks, jumpy and on edge, avoids going out")); // RA7 (PTSD)
+  assert.ok(hasMentalHealthLanguage("hearing voices, believes he is being poisoned"));
+  // MS2 is purely physical — must NOT read as mental (restless/sunken-eyes are dehydration signs).
+  assert.ok(!hasMentalHealthLanguage("malaria area, fever 3 days no test, loose watery stools, restless, sunken eyes, drinks eagerly"));
+  assert.ok(!hasMentalHealthLanguage("cough and fast breathing, chest indrawing, irritable"));
+});
+
+test("reconcilePhysicalOverMental: hallucinated mental class on a physical case is re-pointed; real mental case kept", () => {
+  // MS2 the way it actually failed: model said DEPRESSION for a febrile+malaria+diarrhoea case, NO mental
+  // language → re-point to the physical primary (fever+malaria → MALARIA).
+  assert.equal(reconcilePhysicalOverMental("DEPRESSION", "3-year-old in a malaria area, fever 3 days no test done, loose watery stools, restless, sunken eyes, drinking eagerly"), "MALARIA");
+  // Physical-sign precedence: a pneumonia sign leads; blood → dysentery; bilateral oedema → SAM.
+  assert.equal(reconcilePhysicalOverMental("PSYCHOSIS", "cough with fast breathing 56 a minute, chest indrawing"), "SEVERE PNEUMONIA OR VERY SEVERE DISEASE");
+  assert.equal(reconcilePhysicalOverMental("DEPRESSION", "blood and mucus in the stool for 2 days"), "DYSENTERY");
+  // A GENUINE mental case (mental language present) is NEVER down-routed, even with an incidental physical word.
+  assert.equal(reconcilePhysicalOverMental("DEPRESSION", "28 year old, low mood and loss of interest for a month, poor sleep, also a mild cough"), "DEPRESSION");
+  assert.equal(reconcilePhysicalOverMental("STRESS / PTSD", "nightmares and flashbacks after an assault, jumpy, on edge"), "STRESS / PTSD");
+  // Never touches SELF-HARM / SUICIDE, and leaves an IMCI class or a mental case with no hard physical sign alone.
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "fever and cough in a malaria area"), "SELF-HARM / SUICIDE");
+  assert.equal(reconcilePhysicalOverMental("PNEUMONIA", "cough and fast breathing"), "PNEUMONIA");
+  assert.equal(reconcilePhysicalOverMental("DEMENTIA", "progressive memory loss and confusion over a year"), "DEMENTIA");
 });

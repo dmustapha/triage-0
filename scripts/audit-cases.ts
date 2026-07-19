@@ -346,17 +346,18 @@ export const failureCases: TestCase[] = [
     expectedSeverity: "EMERGENCY",
   },
 
-  // mhGAP anxiety / PTSD: distinct from depression/psychosis; currently no dedicated class. Adult with
-  // re-experiencing + hyperarousal after trauma. No self-harm mention. Today the nearest table class is
-  // DEPRESSION or it may abstain; mark shouldAbstain=false but widen — conservative: accept a mhGAP class
-  // OR abstain (do NOT force a wrong emergency). Encoded conservatively as shouldAbstain to flag the gap.
+  // mhGAP anxiety / PTSD: distinct from depression/psychosis. Adult with re-experiencing (nightmares/
+  // flashbacks) + hyperarousal + avoidance after an extreme stressor, no self-harm. Phase-3 ENCODED the
+  // mhGAP OTH class ("STRESS / PTSD", protocol-table.ts): WHO routes this to the Other Significant Mental
+  // Health Complaints module — psychosocial support, no anti-anxiety/antidepressant drug, consult a
+  // specialist if PTSD is suspected. Severity URGENT (mhGAP non-emergency; SELF-HARM would override to
+  // EMERGENCY, and this case explicitly denies self-harm). Expectation flipped from abstain → STRESS/PTSD.
   {
-    name: "RA7 — mhGAP anxiety/PTSD (gap — abstain acceptable today)",
+    name: "RA7 — mhGAP anxiety/PTSD (encoded: STRESS / PTSD)",
     input: "Adult, one month after surviving a violent assault, has nightmares and flashbacks of the event, is jumpy and constantly on edge, avoids going out, no thoughts of self-harm.",
     failureClass: "rare",
-    // No encoded PTSD/anxiety class exists; the safe behaviour today is to abstain/escalate rather than
-    // mislabel as DEPRESSION or PSYCHOSIS. Redesign (Phase 3) should add the class.
-    shouldAbstain: true,
+    expectedClassification: /PTSD/,
+    expectedSeverity: "URGENT",
     shouldNotBeClassification: "PSYCHOSIS",
   },
 
