@@ -218,6 +218,8 @@
       $("reasonLabel").textContent = "Reading the matched guideline";
     } else if (ev === "first_token") {
       $("hTtft").textContent = (d.ttftMs / 1000).toFixed(1) + " s";
+      // H-1 staged status: the model has started producing its assessment.
+      $("reasonLabel").textContent = "Reasoning through the protocol";
     } else if (ev === "reasoning") {
       var r = $("reasoning");
       // Only autoscroll if the worker is already near the bottom, so reading back does not get yanked.
@@ -251,14 +253,38 @@
   // finish from a stream that closed early and left a blank card.
   var gotTerminal = false;
 
+  // ---- H-1: reasoning wait-timer ----
+  // On-device reasoning takes seconds; a live elapsed counter reassures the worker the tool is working
+  // (not hung) while the model thinks, and the reasonLabel carries the stage. Decorative — aria-hidden.
+  var _rtInt = null, _rtT0 = 0;
+  function startReasonTimer() {
+    _rtT0 = Date.now();
+    var t = $("reasonTimer");
+    if (t) t.textContent = "";
+    if (_rtInt) clearInterval(_rtInt);
+    _rtInt = setInterval(function () {
+      if (t) t.textContent = "· " + ((Date.now() - _rtT0) / 1000).toFixed(0) + "s";
+    }, 250);
+  }
+  function stopReasonTimer() {
+    if (_rtInt) { clearInterval(_rtInt); _rtInt = null; }
+    var t = $("reasonTimer");
+    if (t) t.textContent = "";
+  }
+
   // ---- assess -> /triage (SSE) ----
+  // H-2: an AbortController lets the worker Stop an in-flight assessment; the Get-guidance button toggles
+  // to a Stop button for the duration (mirrors the mic Speak/Stop toggle) and aborts the fetch on click.
+  var assessCtl = null;
   async function runAssess() {
     var caseText = $("case").value.trim();
     if (!caseText) { $("status").textContent = "Describe or record a case first."; $("case").focus(); return; }
     gotTerminal = false;
-    $("assess").disabled = true;
+    assessCtl = new AbortController();
+    // Toggle the button into Stop mode (kept enabled so the worker can abort). Restored in `finally`.
     var assessLabel = $("assess").innerHTML;
-    $("assess").textContent = "Working...";
+    $("assess").innerHTML = ICON.stop + "Stop";
+    $("assess").onclick = function () { if (assessCtl) assessCtl.abort(); };
     $("status").textContent = "";
     $("result").classList.remove("hidden");
     $("result").setAttribute("aria-busy", "true");
@@ -269,13 +295,15 @@
     $("reasoning").textContent = "";
     $("reasonLabel").textContent = "Searching the guidelines";
     $("hTtft").textContent = "·"; $("hTps").textContent = "·"; $("hDev").textContent = "·";
+    startReasonTimer();
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
     var buf = "";
     try {
       var r = await fetch("/triage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseText: caseText })
+        body: JSON.stringify({ caseText: caseText }),
+        signal: assessCtl.signal
       });
       // Guard before reading the stream: a non-2xx or bodyless response has no readable stream.
       if (!r.ok || !r.body) {
@@ -298,12 +326,23 @@
         $("reasoningWrap").classList.add("hidden");
       }
     } catch (e) {
-      $("err").textContent = "Could not get guidance. " + e.message;
+      // H-2: a worker-initiated Stop aborts the fetch → AbortError. That is not a failure; show a calm
+      // "Stopped." and clear the reasoning box rather than an error.
+      if (e && e.name === "AbortError") {
+        $("status").textContent = "Stopped.";
+        $("err").textContent = "";
+      } else {
+        $("err").textContent = "Could not get guidance. " + e.message;
+      }
       $("reasoningWrap").classList.add("hidden");
     } finally {
-      // Re-enable in finally so a mid-stream interruption never leaves the button dead.
+      // Restore the button + timer in finally so a Stop or a mid-stream interruption never leaves the
+      // button stuck in Stop mode or the timer running.
+      stopReasonTimer();
       $("assess").disabled = false;
       $("assess").innerHTML = assessLabel;
+      $("assess").onclick = runAssess;
+      assessCtl = null;
       $("result").removeAttribute("aria-busy");
     }
   }
