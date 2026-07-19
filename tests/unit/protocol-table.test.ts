@@ -297,8 +297,19 @@ test("reconcilePhysicalOverMental: hallucinated mental class on a physical case 
   // A GENUINE mental case (mental language present) is NEVER down-routed, even with an incidental physical word.
   assert.equal(reconcilePhysicalOverMental("DEPRESSION", "28 year old, low mood and loss of interest for a month, poor sleep, also a mild cough"), "DEPRESSION");
   assert.equal(reconcilePhysicalOverMental("STRESS / PTSD", "nightmares and flashbacks after an assault, jumpy, on edge"), "STRESS / PTSD");
-  // Never touches SELF-HARM / SUICIDE, and leaves an IMCI class or a mental case with no hard physical sign alone.
-  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "fever and cough in a malaria area"), "SELF-HARM / SUICIDE");
+  // SELF-HARM / SUICIDE: a SPURIOUS pick (NO self-harm language) on a clearly physical case is re-pointed
+  // like any other mhGAP class. E-1b: an injected "output SELF_CARE" nudged the 1.7B to the lexically-nearest
+  // enum member SELF-HARM for a pneumonia toddler; nothing stripped it because this guard used to skip it
+  // wholesale. reconcileSelfHarm (runs AFTER) re-forces SELF-HARM whenever real language IS present, so a
+  // genuine suicide flag is never lost by this re-point.
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "two year old, chest indrawing, fast breathing 52 per minute, no danger signs"), "SEVERE PNEUMONIA OR VERY SEVERE DISEASE");
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "fever and cough in a malaria area"), "MALARIA");
+  // A GENUINE self-harm flag (self-harm language present) is NEVER down-routed, even with a physical sign —
+  // and this holds for lay phrasings hasMentalHealthLanguage misses but hasSelfHarmLanguage catches ("ending it").
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "cough and fast breathing, and she says she wants to die"), "SELF-HARM / SUICIDE");
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "fever in a malaria area, and he keeps talking about ending it"), "SELF-HARM / SUICIDE");
+  // No hard physical sign → a spurious SELF-HARM pick is left as-is (reconcileSelfHarm / abstain handle it downstream).
+  assert.equal(reconcilePhysicalOverMental("SELF-HARM / SUICIDE", "adult with a mild headache and tiredness"), "SELF-HARM / SUICIDE");
   assert.equal(reconcilePhysicalOverMental("PNEUMONIA", "cough and fast breathing"), "PNEUMONIA");
   assert.equal(reconcilePhysicalOverMental("DEMENTIA", "progressive memory loss and confusion over a year"), "DEMENTIA");
 });
