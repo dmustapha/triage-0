@@ -64,6 +64,8 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
   background:var(--accent-wash); border:1px solid var(--accent-line); border-radius:6px; }
 /* H-1 reasoning wait-timer: a muted, tabular elapsed counter next to the reasoning stage label. */
 .rtimer{ color:var(--dim); font-variant-numeric:tabular-nums; }
+/* H-2 Stop state: the Get-guidance button turns neutral (not the primary CTA colour) while it acts as Stop. */
+.btn.is-stopping{ background:var(--line); color:var(--ink); border-color:var(--line); }
 /* WHO classification — shown before the management plan (what it is, then what to do). */
 .dx{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); }
 .dx-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }

@@ -167,6 +167,27 @@ test("PNEUMONIA with chest indrawing → URGENT", () => {
 - **What happened:** DANGER_RE has `wants? to die` but NOT "end it all"
 - **Lesson:** Test your regex patterns against the EXACT strings you use in tests.
 
+### 5. Built a whole feature before checking if its signal even works (Phase 5a adaptive thinking)
+- **What I did:** Wrote a module + unit test + wired two call sites to make the reason pass short on "clear"
+  cases, using the router's shortlist margin (top class score minus runner-up) as the "clarity" signal.
+- **What happened:** Calibration showed the margin is degenerate — median 0.013 across 52 cases — because the
+  class descriptors are near-synonyms and the shortlist is *built* to surface near-ties. Worse, the widest
+  margins belonged to the severe/mental cases (PTSD, overdose, psychosis) you must NEVER shorten. The whole
+  thing got reverted.
+- **Lesson:** Validate the SIGNAL with the cheapest possible probe before building around it. The evidence
+  was already in `class-router.ts`'s own comment ("~0.03–0.05 below the winner… descriptors share
+  vocabulary"). A 5-minute call to the existing `/debug/route` endpoint would have killed the idea before a
+  line of feature code. A negative result is a fine outcome — just reach it cheaply.
+
+### 6. Shared module state broke under re-entrancy (the reasoning timer)
+- **What I did:** Stored the timer handle in a module-level `_rtInt` and the abort controller in a
+  module-level `assessCtl`, assuming one assessment runs at a time.
+- **What happened:** The keyboard shortcut (Ctrl/Cmd+Enter) bypasses the button, so a second run could start
+  while the first was live — the finishing first run then cleared the *second* run's interval, stopping a
+  timer that was still counting.
+- **Lesson:** Any shared single-instance state (a timer id, an AbortController) needs a re-entrancy guard.
+  One line at the top — `if (assessCtl) return;` — fixes the timer, the double request, AND the overwrite.
+
 ---
 
 ## Part H: What to Learn Next

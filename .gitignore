@@ -58,6 +58,7 @@ prompt.md
 .conductor-lock/
 .watchdog-last-alert
 docs/context/
+docs/prompts/
 debug-results/
 proposals/
 research/
