@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-19T15:54:16.884Z",
+  "timestamp": "2026-07-19T19:09:04.035Z",
   "total": 26,
   "passed": 26,
   "failed": 0,
@@ -21,7 +21,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.50",
-      "ttftMs": 5368,
+      "ttftMs": 5786,
       "error": null,
       "passed": true,
       "failures": [],
@@ -43,7 +43,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.61",
-      "ttftMs": 3353,
+      "ttftMs": 3164,
       "error": null,
       "passed": true,
       "failures": [],
@@ -65,7 +65,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 7995,
+      "ttftMs": 3153,
       "error": null,
       "passed": true,
       "failures": [],
@@ -86,7 +86,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 1829,
+      "ttftMs": 1636,
       "error": null,
       "passed": true,
       "failures": [],
@@ -107,7 +107,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.45",
-      "ttftMs": 3249,
+      "ttftMs": 2855,
       "error": null,
       "passed": true,
       "failures": [],
@@ -124,7 +124,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.11",
-      "ttftMs": 3850,
+      "ttftMs": 3362,
       "error": null,
       "passed": true,
       "failures": [],
@@ -146,7 +146,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 4210,
+      "ttftMs": 3363,
       "error": null,
       "passed": true,
       "failures": [],
@@ -168,7 +168,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3844,
+      "ttftMs": 3571,
       "error": null,
       "passed": true,
       "failures": [],
@@ -189,7 +189,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3666,
+      "ttftMs": 3360,
       "error": null,
       "passed": true,
       "failures": [],
@@ -210,7 +210,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3338,
+      "ttftMs": 3260,
       "error": null,
       "passed": true,
       "failures": [],
@@ -232,7 +232,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3341,
+      "ttftMs": 3258,
       "error": null,
       "passed": true,
       "failures": [],
@@ -253,7 +253,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3451,
+      "ttftMs": 3160,
       "error": null,
       "passed": true,
       "failures": [],
@@ -274,7 +274,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 4937,
+      "ttftMs": 3356,
       "error": null,
       "passed": true,
       "failures": [],
@@ -297,7 +297,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.34",
-      "ttftMs": 3651,
+      "ttftMs": 3463,
       "error": null,
       "passed": true,
       "failures": [],
@@ -319,7 +319,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3845,
+      "ttftMs": 3574,
       "error": null,
       "passed": true,
       "failures": [],
@@ -340,7 +340,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.32",
-      "ttftMs": 3774,
+      "ttftMs": 3264,
       "error": null,
       "passed": true,
       "failures": [],
@@ -361,7 +361,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3342,
+      "ttftMs": 3383,
       "error": null,
       "passed": true,
       "failures": [],
@@ -382,7 +382,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.55",
-      "ttftMs": 3440,
+      "ttftMs": 3160,
       "error": null,
       "passed": true,
       "failures": [],
@@ -405,7 +405,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.10",
-      "ttftMs": 3743,
+      "ttftMs": 3662,
       "error": null,
       "passed": true,
       "failures": [],
@@ -427,7 +427,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 4543,
+      "ttftMs": 2860,
       "error": null,
       "passed": true,
       "failures": [],
@@ -447,7 +447,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3552,
+      "ttftMs": 3164,
       "error": null,
       "passed": true,
       "failures": [],
@@ -466,7 +466,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.155",
-      "ttftMs": 2939,
+      "ttftMs": 2552,
       "error": null,
       "passed": true,
       "failures": [],
@@ -478,7 +478,7 @@
       "classification": "PNEUMONIA",
       "severity": "URGENT",
       "medicines": [
-        "Amoxicillin"
+        "Amoxicilline"
       ],
       "planComponents": [
         "medicines",
@@ -488,7 +488,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 3541,
+      "ttftMs": 3163,
       "error": null,
       "passed": true,
       "failures": [],
@@ -500,8 +500,8 @@
       "classification": "SOME DEHYDRATION",
       "severity": "URGENT",
       "medicines": [
-        "ORS (oral rehydration salts)",
-        "Zinc"
+        "ROS (sels de réhydratation orale)",
+        "zinc"
       ],
       "planComponents": [
         "medicines",
@@ -510,7 +510,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 4555,
+      "ttftMs": 3465,
       "error": null,
       "passed": true,
       "failures": [],
@@ -522,7 +522,7 @@
       "classification": "MALARIA",
       "severity": "URGENT",
       "medicines": [
-        "Artemether-lumefantrine"
+        "Artemether-lumefantrina"
       ],
       "planComponents": [
         "medicines",
@@ -532,7 +532,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3755,
+      "ttftMs": 3779,
       "error": null,
       "passed": true,
       "failures": [],
@@ -544,7 +544,7 @@
       "classification": "SEVERE PNEUMONIA OR VERY SEVERE DISEASE",
       "severity": "EMERGENCY",
       "medicines": [
-        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
+        "Ampicilina + Gentamicina (primera dosis intramuscular de referencia previa)"
       ],
       "planComponents": [
         "medicines",
@@ -553,7 +553,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 3659,
+      "ttftMs": 3666,
       "error": null,
       "passed": true,
       "failures": [],

@@ -113,16 +113,20 @@ export async function translateCardAndPlanFromEnglish(
   if (sourceLang === "en") return { card, plan };
   try {
     const tr = (s: string) => translateText(s, "en", sourceLang);
+    // If the card already carries an embedded plan (runTriage path), translate it too so card.plan is never
+    // left as stale English; the streaming server path passes plan=undefined and emits the plan separately.
+    const embeddedPlan = plan ?? card.plan;
+    const translatedPlan = embeddedPlan ? await translatePlan(embeddedPlan, sourceLang) : undefined;
     const translatedCard: TriageCard = {
       ...card,
       action: await tr(card.action),
       reasoning: await tr(card.reasoning),
       red_flags: await mapSeq(card.red_flags, tr),
+      ...(card.plan !== undefined && { plan: translatedPlan }),
       source_language: sourceLang,
       translated: true,
     };
-    const translatedPlan = plan ? await translatePlan(plan, sourceLang) : plan;
-    return { card: translatedCard, plan: translatedPlan };
+    return { card: translatedCard, plan: plan === undefined ? undefined : translatedPlan };
   } catch (err) {
     console.warn(`[translation] output translate en->${sourceLang} failed, returning English card:`, (err as Error).message);
     return { card: { ...card, source_language: sourceLang, translated: false }, plan };

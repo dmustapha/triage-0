@@ -167,4 +167,19 @@ test("multilingual: FR pneumonia routes to PNEUMONIA and the card round-trips to
   assert.equal(card.translated, true);
   assert.match(card.action, /amoxicilline|jour|orale/i, `action is French (got "${card.action}")`);
   assert.match(card.protocol_citation.doc, /IMCI/i, "the WHO citation stays English for provenance");
+  // The full PLAN (not just the card) must translate — this is what the single-job concurrency bug broke.
+  // Assert a translated medicine name AND that DOSE NUMBERS survive machine translation intact (the clinical
+  // safety property behind the owner's "full plan translated, doses included" choice).
+  const meds = card.plan?.medicines ?? [];
+  assert.ok(meds.length >= 1, "the FR pneumonia plan carries a medicine");
+  const amox = meds.find((m) => /amoxicillin?e/i.test(m.name));
+  assert.ok(amox, `a medicine is French amoxicilline (got ${JSON.stringify(meds.map((m) => m.name))})`);
+  // Every mg/ml/kg number and tablet/ml count from the WHO weight-band table must be preserved verbatim.
+  const doseText = [amox!.strength, amox!.frequency, ...(amox!.bands ?? []).flatMap((b) => [b.band, b.dose])].filter(Boolean).join(" ");
+  assert.match(doseText, /\b250\b/, `the 250 mg strength survives translation (got "${doseText}")`);
+  assert.match(doseText, /\bmg\b/i, "the mg unit survives translation");
+  assert.match(doseText, /\b(ml|kg)\b/i, "ml/kg dosing units survive translation");
+  assert.match(doseText, /\b5\b/, "the '5 days' / 5 ml numbers survive translation");
+  // The per-line citation stays English (provenance), even though the dose text is French.
+  assert.match(String(amox!.citation.doc), /IMCI/i, "the medicine citation stays English");
 });
