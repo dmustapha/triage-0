@@ -11,7 +11,8 @@ export type PerfEvent =
   | "transcribe"
   | "embed"
   | "search"
-  | "tts";
+  | "tts"
+  | "translate";
 
 export interface PerfLogRow {
   ts: string; // ISO8601

@@ -18,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import { config } from "./config.js";
 import { orchestrator } from "./qvac/orchestrator.js";
 import { transcribeTimed, ttsTimed } from "./qvac/engine.js";
+import { translateCaseToEnglish, translateCardAndPlanFromEnglish, translatePlanFromEnglish } from "./qvac/translation.js";
 import { pcmInt16ToWav } from "./qvac/audio.js";
 import { runTriage, retrieveGrounding, triageFromHits, assemblePlan, makeAbstainCard, type TriageContext } from "./triage/triage.js";
 import { routeCase, ensureClassPrototypes } from "./triage/class-router.js";
@@ -206,19 +207,24 @@ app.post("/triage", async (req: Request, res: Response) => {
     await withInferenceLock(() => withTimeout((async () => {
     const ctx = await triageContext();
 
+    // PHASE 4: detect + translate a non-English (FR/ES) case to English BEFORE routing. Everything below
+    // runs on `english`; the card + plan are translated back to `sourceLang` just before their SSE events.
+    // Degrades to the original text on a translation fault (translation.ts) so routing always proceeds.
+    const { english, sourceLang } = await translateCaseToEnglish(caseText);
+
     // PHASE 2 abstain gate: the semantic class-router decides in/out-of-domain from the case's proximity
     // to the 27 WHO class descriptors — NOT from the chunk-retrieval score (which false-abstained lay,
     // abbreviated, multi-symptom, and non-English phrasings). A truly off-domain case (adult cardiac,
     // non-medical, veterinary) matches no class well enough → abstain before the model is ever called.
     const degraded = config.residentMode === "fallback" || !ctx.embedId;
-    const route = degraded ? null : await routeCase(caseText, ctx.embedId!);
+    const route = degraded ? null : await routeCase(english, ctx.embedId!);
     if (route?.offDomain) {
       send("abstain", { card: makeAbstainCard(), retrieval: "abstain" });
       send("done", { ok: true });
       return endStream();
     }
 
-    const { groundedHits, retrieval, topHits } = await retrieveGrounding(caseText, ctx);
+    const { groundedHits, retrieval, topHits } = await retrieveGrounding(english, ctx);
     // Grounding is best-effort now (abstain already decided by the router): threshold-passing hits when
     // present, else the top chunks so an in-domain case still gets a citation panel + reason excerpts.
     const grounding = groundedHits.length ? groundedHits : topHits;
@@ -244,7 +250,7 @@ app.post("/triage", async (req: Request, res: Response) => {
     // the deltas already include them; we surface a "reasoning…" affordance in the UI).
     const reasonStart = Date.now();
     let firstDeltaSent = false;
-    const result = await triageFromHits(caseText, grounding, ctx, {
+    const result = await triageFromHits(english, grounding, ctx, {
       retrieval,
       shortlist: route?.shortlist,
       onReasonDelta: (chunk) => {
@@ -256,13 +262,19 @@ app.post("/triage", async (req: Request, res: Response) => {
       },
     });
 
-    send("card", { card: result.card, classification: result.classification, citationChunk: result.citationChunk, attempts: result.attempts, perf: lastCompletionPerf() });
+    // PHASE 4: translate the card back to the source language (action/reasoning/red_flags + the `translated`
+    // flag) before it streams; the English protocol_citation is kept. English → no-op.
+    const outCard = sourceLang === "en"
+      ? result.card
+      : (await translateCardAndPlanFromEnglish(result.card, undefined, sourceLang)).card;
+    send("card", { card: outCard, classification: result.classification, citationChunk: result.citationChunk, attempts: result.attempts, perf: lastCompletionPerf() });
 
     // Task #22: the grounded WHO management plan lands as a SEPARATE event AFTER the card, so the
     // severity + action + citation appear at their existing timing and the multi-component plan
     // progressively fills in. assemblePlan never throws (returns an empty plan on failure).
     const plan = await assemblePlan(result.classification, result.card.severity, grounding, ctx);
-    send("plan", { plan });
+    const outPlan = await translatePlanFromEnglish(plan, sourceLang);
+    send("plan", { plan: outPlan });
     send("done", { ok: true });
     endStream();
     })(), TRIAGE_TIMEOUT_MS, "triage"));

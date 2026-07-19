@@ -7,12 +7,12 @@ import process from "node:process";
 export type ResidentMode = "resident" | "hybrid" | "sequential" | "fallback";
 
 export interface ModelSpec {
-  /** Human label used in perf logs and UI. */
-  role: "stt" | "medpsy" | "embeddings" | "tts";
+  /** Human label used in perf logs and UI. Translation roles are per-direction (e.g. "translation:fr>en"). */
+  role: "stt" | "medpsy" | "embeddings" | "tts" | `translation:${string}`;
   /** SDK built-in constant TOKEN (resolved in sdk.ts), HF GGUF URL, or local path. */
   modelSrc: string;
   /** QVAC modelType discriminator. */
-  modelType: "whisper" | "llm" | "embeddings" | "tts";
+  modelType: "whisper" | "llm" | "embeddings" | "tts" | "nmtcpp-translation";
   /** Context window (llm/embeddings only). */
   ctxSize?: number;
   /** Engine-specific load config. REQUIRED for tts (e.g. {ttsEngine:"supertonic",language:"en"}). */
@@ -70,4 +70,27 @@ export const registry = {
     modelType: "embeddings",
   } as ModelSpec,
   medpsy: medpsySpec(),
+};
+
+/** Phase 4 multilingual: the case is translated to English BEFORE routing and the card/plan back to the
+ *  source language AFTER. Bergamot NMT runs through the SDK bridge (modelType "nmtcpp-translation"); the
+ *  direct @qvac/translation-nmtcpp class is Bare-runtime-only and fails under Node. Model sources are the
+ *  SDK's built-in registry tokens (resolved in sdk.ts), fetched + cached to ~/.qvac on first load. Generation
+ *  params mirror the SDK's Bergamot example; temperature 0 + beamsize 1 = deterministic (greedy). */
+const bergamotSpec = (from: string, to: string, token: string): ModelSpec => ({
+  role: `translation:${from}>${to}`,
+  modelSrc: token,
+  modelType: "nmtcpp-translation",
+  modelConfig: { engine: "Bergamot", from, to, beamsize: 1, normalize: 1, temperature: 0, norepeatngramsize: 3, lengthpenalty: 1.2 },
+});
+
+/** Target languages = French + Spanish (FINAL-POSITION 1C). 4 directions: in (→en) + out (en→). */
+export const TRANSLATION_LANGS = ["fr", "es"] as const;
+export type TranslationLang = (typeof TRANSLATION_LANGS)[number];
+
+export const translations: Record<string, ModelSpec> = {
+  "fr>en": bergamotSpec("fr", "en", "BERGAMOT_FR_EN"),
+  "en>fr": bergamotSpec("en", "fr", "BERGAMOT_EN_FR"),
+  "es>en": bergamotSpec("es", "en", "BERGAMOT_ES_EN"),
+  "en>es": bergamotSpec("en", "es", "BERGAMOT_EN_ES"),
 };

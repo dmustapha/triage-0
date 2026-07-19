@@ -10,6 +10,7 @@
 //   5. protocol_citation injected from the RETRIEVED chunk (NOT model-authored) + post-check.
 // Model lifecycle is the caller's (server in Phase 4, the test harness now) — the orchestrator is Phase 3.
 import { completionTimed } from "../qvac/engine.js";
+import { translateCaseToEnglish, translateCardAndPlanFromEnglish } from "../qvac/translation.js";
 import { config } from "../config.js";
 import { search, keywordSearch, type SearchHit } from "../rag/store.js";
 import {
@@ -396,35 +397,44 @@ export async function runTriage(
   // PHASE 2: the semantic class-router owns the abstain decision (off-domain gate), decoupled from the
   // chunk-retrieval score. In degraded/no-embed mode there is no router, so fall back to the legacy
   // "no chunk grounded → abstain" behaviour.
+  // PHASE 4: detect + translate a non-English case to English BEFORE routing. Routing, RAG, the WHO table
+  // and every reconciler run on `english`. `finish` translates the finished card + plan back to the source
+  // language (English input → no-op). Degrades to the original text on a translation fault (see translation.ts).
+  const { english, sourceLang } = await translateCaseToEnglish(caseText);
+  const finish = async (r: TriageResult): Promise<TriageResult> => {
+    if (sourceLang === "en") return r;
+    const { card, plan } = await translateCardAndPlanFromEnglish(r.card, r.card.plan, sourceLang);
+    return { ...r, card: plan === undefined ? card : { ...card, plan } };
+  };
   const degraded = config.residentMode === "fallback" || !ctx.embedId;
   let shortlist: RouteResult["shortlist"] | undefined;
   if (!degraded) {
-    const route = await routeCase(caseText, ctx.embedId!);
+    const route = await routeCase(english, ctx.embedId!);
     if (route.offDomain) {
-      return { card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" };
+      return finish({ card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" });
     }
     shortlist = route.shortlist;
   }
-  const { groundedHits, retrieval, topHits } = await retrieveGrounding(caseText, ctx);
+  const { groundedHits, retrieval, topHits } = await retrieveGrounding(english, ctx);
   // Grounding is best-effort now (abstain already decided): use the threshold-passing hits when present,
   // else the top chunks so an in-domain case still gets citation + reason excerpts.
   const grounding = groundedHits.length ? groundedHits : topHits;
   if (grounding.length === 0) {
     // Only reachable in degraded mode (empty keyword result) or an empty store → abstain.
-    return { card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" };
+    return finish({ card: abstainCard(), citationChunk: null, attempts: 0, retrieval: "abstain", classification: "" });
   }
   let result: TriageResult;
   try {
-    result = await triageFromHits(caseText, grounding, ctx, { ...opts, retrieval, shortlist });
+    result = await triageFromHits(english, grounding, ctx, { ...opts, retrieval, shortlist });
   } catch {
     // Extract exhausted MAX_EXTRACT_ATTEMPTS invalid passes. Keep the "always a schema-valid card"
     // invariant for non-streaming callers: degrade to an abstain/escalate card rather than throw.
-    return { card: abstainCard(), citationChunk: grounding[0] ?? null, attempts: MAX_EXTRACT_ATTEMPTS, retrieval, classification: "" };
+    return finish({ card: abstainCard(), citationChunk: grounding[0] ?? null, attempts: MAX_EXTRACT_ATTEMPTS, retrieval, classification: "" });
   }
   // Task #22: attach the grounded management plan (non-streaming path used by tests + runTriage callers).
   // The streaming server path assembles it separately so the card lands first (progressive enhancement).
   result.card.plan = await assemblePlan(result.classification, result.card.severity, grounding, ctx);
-  return result;
+  return finish(result);
 }
 
 /**

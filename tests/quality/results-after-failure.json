@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-07-19T13:08:09.296Z",
+  "timestamp": "2026-07-19T15:54:16.884Z",
   "total": 26,
-  "passed": 23,
-  "failed": 3,
+  "passed": 26,
+  "failed": 0,
   "errors": 0,
-  "passRate": "88.5",
+  "passRate": "100.0",
   "results": [
     {
       "name": "V1 — SOB/RR abbreviations, no resp keyword (pneumonia)",
@@ -21,7 +21,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.50",
-      "ttftMs": 4560,
+      "ttftMs": 5368,
       "error": null,
       "passed": true,
       "failures": [],
@@ -43,7 +43,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.61",
-      "ttftMs": 3272,
+      "ttftMs": 3353,
       "error": null,
       "passed": true,
       "failures": [],
@@ -65,7 +65,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3275,
+      "ttftMs": 7995,
       "error": null,
       "passed": true,
       "failures": [],
@@ -86,7 +86,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 1653,
+      "ttftMs": 1829,
       "error": null,
       "passed": true,
       "failures": [],
@@ -107,7 +107,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.45",
-      "ttftMs": 2963,
+      "ttftMs": 3249,
       "error": null,
       "passed": true,
       "failures": [],
@@ -124,7 +124,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.11",
-      "ttftMs": 3478,
+      "ttftMs": 3850,
       "error": null,
       "passed": true,
       "failures": [],
@@ -146,7 +146,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3476,
+      "ttftMs": 4210,
       "error": null,
       "passed": true,
       "failures": [],
@@ -168,7 +168,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3671,
+      "ttftMs": 3844,
       "error": null,
       "passed": true,
       "failures": [],
@@ -189,7 +189,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3580,
+      "ttftMs": 3666,
       "error": null,
       "passed": true,
       "failures": [],
@@ -210,7 +210,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.7",
-      "ttftMs": 3366,
+      "ttftMs": 3338,
       "error": null,
       "passed": true,
       "failures": [],
@@ -232,7 +232,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3365,
+      "ttftMs": 3341,
       "error": null,
       "passed": true,
       "failures": [],
@@ -253,7 +253,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.9",
-      "ttftMs": 3472,
+      "ttftMs": 3451,
       "error": null,
       "passed": true,
       "failures": [],
@@ -274,7 +274,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3472,
+      "ttftMs": 4937,
       "error": null,
       "passed": true,
       "failures": [],
@@ -297,7 +297,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.34",
-      "ttftMs": 3606,
+      "ttftMs": 3651,
       "error": null,
       "passed": true,
       "failures": [],
@@ -319,7 +319,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 4079,
+      "ttftMs": 3845,
       "error": null,
       "passed": true,
       "failures": [],
@@ -340,7 +340,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.32",
-      "ttftMs": 3466,
+      "ttftMs": 3774,
       "error": null,
       "passed": true,
       "failures": [],
@@ -361,7 +361,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.64",
-      "ttftMs": 3466,
+      "ttftMs": 3342,
       "error": null,
       "passed": true,
       "failures": [],
@@ -382,7 +382,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.55",
-      "ttftMs": 3260,
+      "ttftMs": 3440,
       "error": null,
       "passed": true,
       "failures": [],
@@ -405,7 +405,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.10",
-      "ttftMs": 3878,
+      "ttftMs": 3743,
       "error": null,
       "passed": true,
       "failures": [],
@@ -427,7 +427,7 @@
         "follow_up"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.6",
-      "ttftMs": 2857,
+      "ttftMs": 4543,
       "error": null,
       "passed": true,
       "failures": [],
@@ -447,7 +447,7 @@
         "referral"
       ],
       "citation": "WHO IMCI Chart Booklet (2014) p.8",
-      "ttftMs": 3265,
+      "ttftMs": 3552,
       "error": null,
       "passed": true,
       "failures": [],
@@ -466,7 +466,7 @@
         "referral"
       ],
       "citation": "WHO mhGAP Intervention Guide v2.0 p.155",
-      "ttftMs": 2648,
+      "ttftMs": 2939,
       "error": null,
       "passed": true,
       "failures": [],
@@ -487,8 +487,8 @@
         "return_now",
         "follow_up"
       ],
-      "citation": "WHO IMCI Chart Booklet (2014) p.40",
-      "ttftMs": 3863,
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 3541,
       "error": null,
       "passed": true,
       "failures": [],
@@ -497,56 +497,66 @@
     },
     {
       "name": "NE2 — FR some dehydration (diarrhée, yeux enfoncés)",
-      "classification": "UNKNOWN",
-      "severity": "UNKNOWN",
-      "medicines": [],
-      "planComponents": [],
-      "citation": "",
-      "ttftMs": 0,
-      "error": null,
-      "passed": false,
-      "failures": [
-        "severity: got UNKNOWN, expected URGENT",
-        "classification: got UNKNOWN, expected match /SOME DEHYDRATION/"
+      "classification": "SOME DEHYDRATION",
+      "severity": "URGENT",
+      "medicines": [
+        "ORS (oral rehydration salts)",
+        "Zinc"
       ],
+      "planComponents": [
+        "medicines",
+        "home_care",
+        "return_now",
+        "follow_up"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.7",
+      "ttftMs": 4555,
+      "error": null,
+      "passed": true,
+      "failures": [],
       "expectedSeverity": "URGENT",
       "expectedClassification": {}
     },
     {
       "name": "NE3 — ES malaria (fiebre, zona de paludismo)",
-      "classification": "FEVER: NO MALARIA",
-      "severity": "ROUTINE",
-      "medicines": [],
+      "classification": "MALARIA",
+      "severity": "URGENT",
+      "medicines": [
+        "Artemether-lumefantrine"
+      ],
       "planComponents": [
+        "medicines",
         "supportive",
         "home_care",
         "return_now",
         "follow_up"
       ],
-      "citation": "WHO IMCI Chart Booklet (2014) p.33",
-      "ttftMs": 1736,
+      "citation": "WHO IMCI Chart Booklet (2014) p.64",
+      "ttftMs": 3755,
       "error": null,
-      "passed": false,
-      "failures": [
-        "severity: got ROUTINE, expected URGENT"
-      ],
+      "passed": true,
+      "failures": [],
       "expectedSeverity": "URGENT",
       "expectedClassification": {}
     },
     {
       "name": "NE4 — ES severe pneumonia/VSD (tos, no puede beber, letárgico)",
-      "classification": "UNKNOWN",
-      "severity": "UNKNOWN",
-      "medicines": [],
-      "planComponents": [],
-      "citation": "",
-      "ttftMs": 0,
-      "error": null,
-      "passed": false,
-      "failures": [
-        "severity: got UNKNOWN, expected EMERGENCY",
-        "classification: got UNKNOWN, expected match /SEVERE PNEUMONIA|VERY SEVERE DISEASE/"
+      "classification": "SEVERE PNEUMONIA OR VERY SEVERE DISEASE",
+      "severity": "EMERGENCY",
+      "medicines": [
+        "Ampicillin + Gentamicin (intramuscular pre-referral first dose)"
       ],
+      "planComponents": [
+        "medicines",
+        "supportive",
+        "return_now",
+        "referral"
+      ],
+      "citation": "WHO IMCI Chart Booklet (2014) p.6",
+      "ttftMs": 3659,
+      "error": null,
+      "passed": true,
+      "failures": [],
       "expectedSeverity": "EMERGENCY",
       "expectedClassification": {}
     }

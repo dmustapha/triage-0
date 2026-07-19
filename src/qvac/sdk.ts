@@ -143,6 +143,19 @@ export const textToSpeech = async (args: {
   throw new Error(`textToSpeech: unexpected return shape ${JSON.stringify(Object.keys(res ?? {}))}`);
 };
 
+// NMT translation via the SDK's Bergamot bridge (modelType "nmtcpp-translation"). The direct
+// @qvac/translation-nmtcpp class is a Bare-runtime addon (require.addon/bare-fs) and does NOT run under
+// Node — the SDK bridges it, same as every other model. Non-streaming: await the resolved `.text`.
+export const translate = async (args: { modelId: string; text: string }): Promise<string> => {
+  const res = (qvac as any).translate({
+    modelId: args.modelId,
+    text: args.text,
+    modelType: "nmtcpp-translation",
+    stream: false,
+  }) as { text: Promise<string> };
+  return await res.text;
+};
+
 /** Single-text embedding -> number[]. (Verified: embed returns { embedding, stats }.) */
 export const embed = async (args: { modelId: string; text: string }): Promise<number[]> => {
   const res = (await (qvac as any).embed(args)) as { embedding: number[] };
