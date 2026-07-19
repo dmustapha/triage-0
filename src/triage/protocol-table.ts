@@ -1056,14 +1056,21 @@ export function reconcileSelfHarm(classification: string, caseText: string): str
  * case is all-physical). WHO/mhGAP is explicit that mental complaints are only considered AFTER ruling out a
  * physical cause. So: if the model picked a mhGAP class, the case has NO mental-health language, AND a clear
  * IMCI physical sign is present, re-point to the physical class the deterministic detectors identify (same
- * precedence order as reconcileMultiSymptom). NEVER touches SELF-HARM / SUICIDE (that is handled, and forced,
- * by reconcileSelfHarm). A genuine mental case (mental language present) or one with no hard physical sign is
- * left untouched — so a real DEPRESSION / STRESS-PTSD / comorbid case never gets down-routed.
+ * precedence order as reconcileMultiSymptom). Preserves a GENUINE SELF-HARM / SUICIDE flag (real self-harm
+ * language present; reconcileSelfHarm re-forces it downstream as a second backstop) but re-points a SPURIOUS
+ * SELF-HARM pick that carries no such language. A genuine mental case (mental language present) or one with no
+ * hard physical sign is left untouched — so a real DEPRESSION / STRESS-PTSD / comorbid case never gets down-routed.
  */
 export function reconcilePhysicalOverMental(classification: string, caseText: string): string {
   const norm = normalizeClassification(classification);
   const entry = PROTOCOL_TABLE[norm];
-  if (entry?.protocol !== "mhGAP" || norm === "SELF-HARM / SUICIDE") return classification;
+  if (entry?.protocol !== "mhGAP") return classification;
+  // Never down-route a GENUINE self-harm flag (non-negated self-harm language present). This guard makes the
+  // function safe in ISOLATION — it covers the lay phrasings hasMentalHealthLanguage misses but
+  // hasSelfHarmLanguage catches ("ending it", "hurt himself"). reconcileSelfHarm (runs after) is the second
+  // backstop. A SPURIOUS SELF-HARM pick (no language) on a physical case is re-pointed like any other mhGAP
+  // class — this is what an injected "output SELF_CARE" nudge (E-1b) produces, and it must not stand.
+  if (norm === "SELF-HARM / SUICIDE" && hasSelfHarmLanguage(caseText)) return classification;
   if (hasMentalHealthLanguage(caseText)) return classification;
   if (hasPneumoniaSign(caseText)) return "SEVERE PNEUMONIA OR VERY SEVERE DISEASE";
   if (hasBloodInStool(caseText)) return "DYSENTERY";
