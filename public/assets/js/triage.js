@@ -263,7 +263,7 @@
     if (t) t.textContent = "";
     if (_rtInt) clearInterval(_rtInt);
     _rtInt = setInterval(function () {
-      if (t) t.textContent = "· " + ((Date.now() - _rtT0) / 1000).toFixed(0) + "s";
+      if (t) t.textContent = "· " + Math.floor((Date.now() - _rtT0) / 1000) + "s";
     }, 250);
   }
   function stopReasonTimer() {
@@ -279,11 +279,16 @@
   async function runAssess() {
     var caseText = $("case").value.trim();
     if (!caseText) { $("status").textContent = "Describe or record a case first."; $("case").focus(); return; }
+    // Re-entrancy guard: a run is already in flight (assessCtl set). The keyboard path (Ctrl/Cmd+Enter)
+    // bypasses the button, so without this a second run would overwrite assessCtl + the shared timer
+    // interval (stopping the live one) and start a second /triage the single-job engine only queues.
+    if (assessCtl) return;
     gotTerminal = false;
     assessCtl = new AbortController();
     // Toggle the button into Stop mode (kept enabled so the worker can abort). Restored in `finally`.
     var assessLabel = $("assess").innerHTML;
     $("assess").innerHTML = ICON.stop + "Stop";
+    $("assess").classList.add("is-stopping");
     $("assess").onclick = function () { if (assessCtl) assessCtl.abort(); };
     $("status").textContent = "";
     $("result").classList.remove("hidden");
@@ -331,6 +336,9 @@
       if (e && e.name === "AbortError") {
         $("status").textContent = "Stopped.";
         $("err").textContent = "";
+        // If a card already rendered, drop its still-pending plan placeholder so it does not hang.
+        var pw = $("planWrap");
+        if (pw && /plan-pending/.test(pw.className)) { pw.textContent = ""; pw.className = ""; }
       } else {
         $("err").textContent = "Could not get guidance. " + e.message;
       }
@@ -341,6 +349,7 @@
       stopReasonTimer();
       $("assess").disabled = false;
       $("assess").innerHTML = assessLabel;
+      $("assess").classList.remove("is-stopping");
       $("assess").onclick = runAssess;
       assessCtl = null;
       $("result").removeAttribute("aria-busy");
@@ -395,6 +404,11 @@
       handleEvent: handleEvent,
       shortDoc: shortDoc,
       citeMini: citeMini,
+      // Exported for the jsdom Stop/timer test (H-1/H-2). These drive the /triage flow, so the test can
+      // stub fetch + AbortController and assert the abort path, staged label, and timer lifecycle.
+      runAssess: runAssess,
+      startReasonTimer: startReasonTimer,
+      stopReasonTimer: stopReasonTimer,
     };
   }
 })();
