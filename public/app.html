@@ -31,6 +31,9 @@
 
     <main class="app-main">
       <h1 class="sr-only">Triage-0 clinical guidance</h1>
+      <!-- H-7: shown only when the RAG store is empty (citation map missing OR native store wiped), so a
+           fresh setup that skipped `npm run ingest` is obvious instead of silently abstaining on every case -->
+      <div id="setupBanner" class="setup-banner hidden" role="alert"></div>
       <!-- step 1 -->
       <section aria-labelledby="h-describe">
         <div class="step-label"><span class="step-num">1</span><h2 id="h-describe" class="display">Describe the patient</h2></div>

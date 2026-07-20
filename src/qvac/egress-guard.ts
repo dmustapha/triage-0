@@ -34,14 +34,31 @@ export class EgressGuard {
   readonly violations: EgressViolation[] = [];
   private restores: Array<() => void> = [];
   private armed = false;
+  private strict = false;
+
+  /** Is the guard currently intercepting network calls? (surfaced on /health). */
+  get isArmed(): boolean { return this.armed; }
+  /** Does a violation throw (block the connection) rather than only being recorded? */
+  get isStrict(): boolean { return this.strict; }
 
   private record(kind: EgressViolation["kind"], host?: string | null) {
-    if (isExternalHost(host)) this.violations.push({ kind, target: String(host) });
+    if (!isExternalHost(host)) return;
+    this.violations.push({ kind, target: String(host) });
+    // Strict mode (H-6): BLOCK the connection, not just record it. Armed in the serving process only AFTER
+    // all model prewarm, so the one disclosed egress (first-run weight download) is already done — from
+    // here any external connection is a real violation and must be stopped. This converts the "case never
+    // leaves the device" thesis from tested → enforced. Throwing aborts the offending connect/request.
+    if (this.strict) {
+      throw new Error(
+        `[egress-guard] BLOCKED external ${kind} connection to ${host} — the patient's case must never leave the device`,
+      );
+    }
   }
 
-  arm(): void {
+  arm(strict = false): void {
     if (this.armed) return;
     this.armed = true;
+    this.strict = strict;
     this.violations.length = 0;
 
     // net.Socket.prototype.connect — TCP. connect(options|port|path[, host][, cb]).
@@ -168,6 +185,7 @@ export class EgressGuard {
   disarm(): void {
     while (this.restores.length) this.restores.pop()!();
     this.armed = false;
+    this.strict = false;
   }
 }
 

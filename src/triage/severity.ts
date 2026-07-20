@@ -138,7 +138,11 @@ export function finalizeSeverityV2(
   const base = entry ? entry.severity : classifyToSeverity(classification, action);
   // Escalate: a true general danger sign outranks any classification band.
   if (hasEmergencySign(caseText, redFlags)) return "EMERGENCY";
-  // Downgrade: an EMERGENCY justified ONLY by a pneumonia sign (no danger sign) is the home-treatment band.
-  if (base === "EMERGENCY" && PNEUMONIA_SIGN_RE.test(`${caseText} ${redFlags.join(" ")}`)) return "URGENT";
+  // Downgrade: an EMERGENCY justified ONLY by a pneumonia sign (no danger sign) is the home-treatment band —
+  // but ONLY for a class that HAS a home-treatment sibling (`entry.downgradeTo`, set on SEVERE PNEUMONIA OR
+  // VERY SEVERE DISEASE alone). This gates the downgrade on the SAME signal the plan-routing uses
+  // (triage.ts), so severity can never desync from the plan, and a stray pneumonia-sign token can never
+  // under-triage another frozen Pink class (VERY SEVERE FEBRILE DISEASE, SEVERE DEHYDRATION, etc.). C-1.
+  if (base === "EMERGENCY" && entry?.downgradeTo && PNEUMONIA_SIGN_RE.test(`${caseText} ${redFlags.join(" ")}`)) return "URGENT";
   return base;
 }
