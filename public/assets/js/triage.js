@@ -100,8 +100,19 @@
 
   // ---- render ----
   function renderCitation(c) {
-    $("citationBox").classList.remove("hidden");
-    $("citationBox").innerHTML =
+    var box = $("citationBox");
+    box.classList.remove("hidden");
+    // The card pass (SSE "card") calls this a SECOND time to refine the early raw-chunk citation to the
+    // classification-correct one. If a citation is already shown, update its text IN PLACE — replacing the
+    // whole innerHTML would recreate the .cite node and replay its cite-in entrance animation ~20s later,
+    // a visible flicker (Phase-7 rehearsal). Keeping the node stable swaps the text with no re-animation.
+    var cite = box.querySelector(".cite");
+    if (cite) {
+      cite.querySelector(".q").textContent = '"' + c.section + '"';
+      cite.querySelector(".src").textContent = c.doc + ", page " + c.page + ". Found in the guidelines on this device.";
+      return;
+    }
+    box.innerHTML =
       '<div class="cite">' +
         '<span class="from">' + ICON.guide + 'From the WHO guide</span>' +
         '<span class="q">"' + esc(c.section) + '"</span>' +
