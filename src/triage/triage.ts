@@ -49,6 +49,15 @@ const MAX_EXTRACT_ATTEMPTS = 3;
 /** Reason-pass token budget. High enough to finish the <think> block + conclusion on a dense case
  *  (the danger-sign case needed ~900). The demo path (E-5) overrides this lower for latency. */
 const DEFAULT_REASON_PREDICT = Number(process.env.REASON_PREDICT) || 1024;
+/** Extract-pass token cap. The extract emits a small GBNF-constrained JSON object (classification + a
+ *  one-line action + a BRIEF reasoning + a short red_flags array + a confidence enum) — ~95 tokens in
+ *  practice. WITHOUT a cap, a degenerate reason assessment (e.g. a translated case whose <think> block
+ *  never concluded, leaving stripThink near-empty) gives the greedy temp:0 decoder no anchor and it RUNS
+ *  AWAY, generating thousands of tokens until it fills the whole KV context → `processPromptImpl: context
+ *  overflow` (live-caught in Phase-7 rehearsal on a Spanish meningitis case). 512 is ~5× the real extract
+ *  size — it never truncates a legitimate "brief" extract, but bounds a runaway well under ctx so the
+ *  worst case is a retry, not a crashed request. */
+const DEFAULT_EXTRACT_PREDICT = Number(process.env.EXTRACT_PREDICT) || 512;
 
 const GROUNDING_RULE =
   "CLASSIFICATION RULE: First identify the child's MAIN clinical problem from the case — focus on the " +
@@ -294,7 +303,8 @@ export async function triageFromHits(
       // Greedy decoding (temp 0) — the classification pick must be STABLE run-to-run, like the reason pass.
       // Without it the extract sampled DEPRESSION for a purely-physical case on some runs (MS2). The GBNF
       // enum grammar still constrains the output; temp 0 just removes the sampling noise on the boundary.
-      generationParams: { temp: 0 },
+      // `predict` caps a runaway (see DEFAULT_EXTRACT_PREDICT) so a degenerate assessment can never overflow ctx.
+      generationParams: { temp: 0, predict: DEFAULT_EXTRACT_PREDICT },
     });
     const parsed = TriageExtractSchema.safeParse(parseExtract(extractRun.text));
     if (parsed.success) {
