@@ -255,6 +255,47 @@ test("finalizeSeverityV2: downgrade only fires when PNEUMONIA_SIGN_RE matches �
   );
 });
 
+// ── C-1: PINK + pneumonia-sign stress cases (under-triage gate) ────────────────
+// The pneumonia downgrade must fire ONLY for a class with a home-treatment sibling (`downgradeTo`, set on
+// SEVERE PNEUMONIA OR VERY SEVERE DISEASE alone). Any OTHER frozen-Pink class that merely mentions a
+// pneumonia-sign token (plausible in a severe febrile/septic child) must KEEP its table EMERGENCY — never
+// be demoted to URGENT by a stray token (that would under-triage AND desync from the plan, which only
+// re-routes when `downgradeTo` is set). Each case below carries a pneumonia sign and NO danger sign, so it
+// isolates the downgrade gate: before the fix it wrongly returned URGENT; after, it stays EMERGENCY.
+test("finalizeSeverityV2 C-1: non-downgradeTo Pink + pneumonia sign, no danger → stays EMERGENCY", () => {
+  const cases: [string, string][] = [
+    ["VERY SEVERE FEBRILE DISEASE", "high fever, fast breathing at 55 breaths per minute, alert, drinking"],
+    ["SEVERE DEHYDRATION", "sunken eyes, breathing 58 a minute, skin pinch slow, alert"],
+    ["SEVERE JAUNDICE", "yellow palms and soles, fast breathing 50/min, alert"],
+    ["MASTOIDITIS", "tender swelling behind the ear, chest indrawing, alert, drinking"],
+    ["SEVERE ANAEMIA", "very pale palms, breathing 60 per minute, alert"],
+    ["SEVERE PERSISTENT DIARRHOEA", "diarrhoea for 18 days, fast breathing 54/min, alert, drinking well"],
+  ];
+  for (const [cls, text] of cases) {
+    assert.equal(
+      finalizeSeverityV2(cls, "refer urgently", text, []),
+      "EMERGENCY",
+      `${cls} with a pneumonia sign and no danger sign must stay EMERGENCY (no downgradeTo → no downgrade)`,
+    );
+  }
+});
+
+test("finalizeSeverityV2 C-1: control — SEVERE PNEUMONIA (has downgradeTo) + pneumonia sign, no danger → URGENT", () => {
+  // The one legitimate 2014-merge downgrade still fires (the class HAS a home-treatment sibling).
+  assert.equal(
+    finalizeSeverityV2("SEVERE PNEUMONIA OR VERY SEVERE DISEASE", "give first dose, refer urgently", "chest indrawing, fast breathing 56/min, alert, drinking", []),
+    "URGENT",
+  );
+});
+
+test("finalizeSeverityV2 C-1: escalation still wins — non-downgradeTo Pink + pneumonia sign + danger → EMERGENCY", () => {
+  // A real danger sign (unable to drink) escalates before the downgrade is ever considered.
+  assert.equal(
+    finalizeSeverityV2("VERY SEVERE FEBRILE DISEASE", "refer urgently", "high fever, fast breathing 55/min, now unable to drink", ["unable to drink"]),
+    "EMERGENCY",
+  );
+});
+
 test("finalizeSeverityV2: breathing rate formats all match PNEUMONIA_SIGN_RE", () => {
   // Various ways breathing rates appear in case text — all must trigger the downgrade guard.
   const formats = [

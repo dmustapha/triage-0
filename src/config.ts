@@ -3,6 +3,7 @@
 // Built-in model constants are referenced by TOKEN name here; the sdk.ts shim resolves
 // each token to the real exported @qvac/sdk value (a ModelDescriptor object or string).
 import process from "node:process";
+import { existsSync } from "node:fs";
 
 export type ResidentMode = "resident" | "hybrid" | "sequential" | "fallback";
 
@@ -24,6 +25,12 @@ export const TTS_SAMPLE_RATE = 44100;
 
 /** MedPsy default = 1.7B Q4_K_M (1.28 GB, cached at .models/). 4B is opt-in high-accuracy mode. */
 const MEDPSY_1_7B_LOCAL = new URL("../.models/medpsy-1.7b-q4_k_m-imat.gguf", import.meta.url).pathname;
+// Cold-clone fallback (C-3): .models/ + *.gguf are gitignored, so a fresh clone lacks the local file and a
+// bare local path does NOT auto-download. Fall back to the HF GGUF URL (a URL auto-downloads + caches, the
+// way MODEL_ID=4b already does), so `npm start` works OOTB for a judge. The local file is still preferred
+// when present (offline, no download). Filename + repo match remote-api-manifest.json / README.
+const MEDPSY_1_7B_URL =
+  "https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q4_k_m-imat.gguf";
 const MEDPSY_4B =
   "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q4_k_m-imat.gguf";
 
@@ -51,7 +58,9 @@ export const config = {
 };
 
 export function medpsySpec(): ModelSpec {
-  const src = config.modelId === "4b" ? MEDPSY_4B : MEDPSY_1_7B_LOCAL;
+  // 4b → URL (auto-download). 1.7b → local cache if present, else the HF URL (auto-download on cold clone).
+  const src =
+    config.modelId === "4b" ? MEDPSY_4B : existsSync(MEDPSY_1_7B_LOCAL) ? MEDPSY_1_7B_LOCAL : MEDPSY_1_7B_URL;
   // ctx 3072 (was 4096): measured peak is ~1230 prompt + ≤1024 reason ≈ 2250 tokens, so 3072 keeps a
   // comfortable margin while trimming KV-cache RAM + load time on the 8GB target. (cache-type-k/v and
   // flash_attn are NOT exposed by @qvac/sdk@0.13.3 — verified absent from the SDK dist — so ctx is the

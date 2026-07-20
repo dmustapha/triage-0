@@ -30,9 +30,19 @@
     });
   }
 
-  // ---- guidelines loaded count (for the live readout) ----
+  // ---- guidelines loaded count (for the live readout) + empty-store setup banner (H-7) ----
   fetch("/health").then(function (r) { return r.json(); }).then(function (h) {
     if ($("hChunks")) $("hChunks").textContent = h.chunks != null ? h.chunks : "·";
+    // The RAG store is not ready if no chunks are loaded (citation map missing) OR the native vector store
+    // returned no hits on the startup self-test (ragLive===false — store wiped). Either way every triage
+    // would abstain, so surface a loud, actionable banner instead of letting it look like intended behavior.
+    var banner = $("setupBanner");
+    if (banner && (h.chunks === 0 || h.ragLive === false)) {
+      banner.innerHTML =
+        "<strong>Setup needed.</strong> The WHO guideline store is empty, so every case will abstain. " +
+        "Run <code>npm run ingest</code> in the project folder, then restart the server.";
+      banner.classList.remove("hidden");
+    }
   }).catch(function () {});
 
   // ---- record -> /transcribe ----
@@ -67,8 +77,14 @@
             return;
           }
           var j = await r.json();
-          if (j.text) $("case").value = j.text.trim();
-          $("status").textContent = j.perf ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s") : "";
+          // M-6: an empty/whitespace transcript (silence, noise, or a too-short clip) must NOT look like a
+          // successful "heard in Xs" with a blank box — nudge the user to retry or type instead.
+          if (j.text && j.text.trim()) {
+            $("case").value = j.text.trim();
+            $("status").textContent = j.perf ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s") : "";
+          } else {
+            $("status").textContent = "Didn't catch that — try speaking again, or type the case.";
+          }
         } catch (e) { $("status").textContent = "Could not hear that. Type the case instead."; }
       };
       mediaRec.start();
@@ -363,7 +379,15 @@
 
   // ---- listen -> /tts ----
   var lastTtsUrl = null;
+  var ttsBusy = false;
   async function speak(text) {
+    // M-6: debounce. The @qvac engine is single-job — a second /tts fired while the first is in flight makes
+    // the engine throw "Stale job replaced by new run". Ignore re-entrant clicks and disable the button until
+    // this read finishes, so a fast double-tap can never break the current speech.
+    if (ttsBusy) return;
+    ttsBusy = true;
+    var btn = $("speak");
+    if (btn) btn.disabled = true;
     var st = $("ttsStatus");
     st.textContent = "Reading it aloud";
     try {
@@ -389,6 +413,9 @@
       st.textContent = perf ? ("spoken in " + (JSON.parse(perf).durationMs / 1000).toFixed(1) + " s") : "";
     } catch (e) {
       st.textContent = "Could not read that aloud.";
+    } finally {
+      ttsBusy = false;
+      if (btn) btn.disabled = false;
     }
   }
 

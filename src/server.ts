@@ -24,6 +24,7 @@ import { runTriage, retrieveGrounding, triageFromHits, assemblePlan, makeAbstain
 import { routeCase, ensureClassPrototypes } from "./triage/class-router.js";
 import { readPerfRows, perfCsvPath } from "./qvac/perf-logger.js";
 import { chunkCount, citationMapHealthy } from "./rag/store.js";
+import { guard } from "./qvac/egress-guard.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -125,6 +126,9 @@ app.get("/health", (_req: Request, res: Response) => {
     ragLive,
     // Phase 4: null until translation prewarm runs; true = the 4 Bergamot models are resident (FR/ES fast).
     translationReady,
+    // H-6: the offline-egress guard's live state — armed (post-prewarm), strict (blocks vs records), and the
+    // count of external connection attempts seen (must be 0). Turns the no-egress thesis into an observable.
+    egress: { armed: guard.isArmed, strict: guard.isStrict, violations: guard.violations.length },
   });
 });
 
@@ -349,6 +353,15 @@ export function startServer(port = config.port) {
     const addr = server.address();
     const p = typeof addr === "object" && addr ? addr.port : port;
     process.stdout.write(`Triage-0 listening on http://localhost:${p}  (MedPsy ${config.modelId}, mode=${config.residentMode})\n`);
+    // H-7: a fresh clone that skipped `npm run ingest` has an empty citation map (chunkCount()===0), so every
+    // triage would abstain and look like intended behavior. Warn LOUDLY at boot (the wiped-native-store case
+    // is caught separately by the ragLive self-test below). Also surfaced on /health + a first-load UI banner.
+    if (chunkCount() === 0) {
+      process.stderr.write(
+        "[triage-0] ⚠️  RAG STORE EMPTY: 0 guideline chunks loaded (data/rag/citation-map.json missing). " +
+        "Every case will abstain until you run `npm run ingest`.\n",
+      );
+    }
   });
   // F5: pre-warm the models + the embed engine's cold first-call so the FIRST triage is not a 30-45s cold
   // start (the demo's biggest latency risk). Best-effort, serialized via the inference lock so it never
@@ -406,6 +419,14 @@ export function startServer(port = config.port) {
           process.stderr.write(`[triage-0] translation pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
         }
       }
+      // H-6: arm the offline-egress guard in the SERVING process (not just a test/script). Armed LAST, after
+      // every model prewarm, so the one disclosed egress — the first-run weight download — is already done
+      // and cached. From here any external connection attempt is a real violation and is BLOCKED (strict),
+      // converting the "the patient's case never leaves the device" thesis from tested → enforced. Escape
+      // hatch: TRIAGE0_EGRESS_NONSTRICT = record-only (still surfaced on /health, but does not block).
+      const strict = !process.env.TRIAGE0_EGRESS_NONSTRICT;
+      guard.arm(strict);
+      process.stdout.write(`[triage-0] egress guard armed (${strict ? "strict — external connections blocked" : "record-only"}); the case never leaves the device\n`);
     });
   }
   return server;
