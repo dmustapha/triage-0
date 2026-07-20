@@ -183,3 +183,29 @@ test("multilingual: FR pneumonia routes to PNEUMONIA and the card round-trips to
   // The per-line citation stays English (provenance), even though the dose text is French.
   assert.match(String(amox!.citation.doc), /IMCI/i, "the medicine citation stays English");
 });
+
+// C-4 regression (Phase-7 live-caught): a Spanish "very severe febrile disease" case (high fever + neck
+// stiffness + unable to drink) once CRASHED the request with `processPromptImpl: context overflow`. Root
+// cause: the reason pass produced a DEGENERATE assessment (its tokens stayed inside <think>, stripThink →
+// a near-empty anchor), so the UNCAPPED extract pass ran away (~2000+ tokens) and filled the KV context
+// mid-generation. The fix caps the extract (DEFAULT_EXTRACT_PREDICT); the runaway is now truncated and the
+// retry loop recovers. This test's LOAD-BEARING assertion is that runTriage COMPLETES (does not throw) —
+// with the cap removed it overflows and this fails. Bonus: the deterministic danger-sign gate still forces
+// EMERGENCY and the card round-trips to Spanish. Soft-skips if the Bergamot es>en model is unavailable.
+test("C-4 regression: ES neck-stiffness danger-sign case does NOT overflow (completes, EMERGENCY, es round-trip)", { skip, timeout: 240_000 }, async () => {
+  let esReady = false;
+  try { await orchestrator.ensure(translations["es>en"], "test"); esReady = true; } catch { esReady = false; }
+  if (!esReady) { console.log("  (skipped: Bergamot es>en model unavailable)"); return; }
+  // Before the fix, this line threw CONTEXT_OVERFLOW. The primary guard is simply that it resolves.
+  const { card, classification } = await runTriage(
+    "Niño de 3 años con fiebre alta, rigidez en el cuello y muy somnoliento, no puede beber.",
+    { medpsyId, embedId },
+  );
+  // "no puede beber" (unable to drink) is a WHO danger sign → the deterministic severity gate forces EMERGENCY.
+  assert.equal(card.severity, "EMERGENCY", `ES danger-sign case must escalate (got ${card.severity}, class="${classification}")`);
+  assert.notEqual(String(classification).toUpperCase(), "UNKNOWN", `must classify, not abstain (got ${classification})`);
+  // Output round-trips to Spanish with the English WHO citation kept for provenance.
+  assert.equal(card.source_language, "es");
+  assert.equal(card.translated, true);
+  assert.match(card.protocol_citation.doc, /IMCI/i, "the WHO citation stays English");
+});
