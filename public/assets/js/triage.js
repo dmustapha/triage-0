@@ -19,13 +19,59 @@
     chip: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v3M14 3v3M10 18v3M14 18v3M3 10h3M3 14h3M18 10h3M18 14h3"/></svg>'
   };
 
-  var SEV_NOTE = {
-    EMERGENCY: "Refer now",
-    URGENT: "Treat now and follow up",
-    ROUTINE: "Home care",
-    SELF_CARE: "Self-care advice",
-    UNKNOWN: "No matching guideline"
+  // ---- i18n: the whole flow from the case downwards renders in the case's language (en/fr/es) ----
+  // The UI language is set from the detected language (the `detect` stage event / card.source_language),
+  // so a French case shows French chrome, reasoning and audio. Templates use {placeholder} substitution.
+  var I18N = {
+    en: {
+      langName: { en: "English", fr: "French", es: "Spanish" },
+      reason_search: "Searching the guidelines", reason_read: "Reading the matched guideline", reason_think: "Reasoning through the protocol",
+      st_detect: "Detected {lang}", st_translate_in: "Translated case → English", st_retrieve: "Searched {n} WHO passages",
+      st_reason: "Reasoning on-device", st_classify: "Classified: {cls}", st_translate_out: "Translated output → {lang}", st_plan: "Built WHO management plan",
+      d_langdetect: "on-device langdetect", d_nmt_in: "on-device Bergamot NMT", d_retrieval: "semantic retrieval", d_medpsy: "MedPsy 1.7B · GPU", d_classes: "1 of 27 WHO classes", d_nmt_out: "on-device NMT", d_grounded: "grounded in the cited protocol",
+      cite_from: "From the WHO {protocol} guideline", cite_from_generic: "From the WHO guideline", cite_src: "{doc}, page {page}. Found in the guidelines on this device.",
+      classification: "Classification", classes_hint: "1 of 27 WHO classes", conf_high: "high confidence", conf_medium: "medium confidence", conf_low: "low confidence",
+      plan_pending: "Preparing the full management plan", plan_head: "Management plan", plan_meds: "Medicines", plan_supportive: "Supportive care", plan_home: "Home care", plan_return: "Return immediately if", plan_followup: "Follow-up", plan_referral: "Referral", plan_at_visit: "At the visit: {detail}",
+      plan_foot: "Every line is taken verbatim from the WHO guidelines on this device. Doses are the WHO weight-band amounts; confirm the child’s weight.",
+      sev_EMERGENCY: "Refer now", sev_URGENT: "Treat now and follow up", sev_ROUTINE: "Home care", sev_SELF_CARE: "Self-care advice", sev_UNKNOWN: "No matching guideline",
+      audio_preparing: "Preparing the spoken guidance…", audio_listen: "Listen to the guidance", audio_ready: "Spoken guidance ready", audio_ready_s: "Spoken guidance ready · {s} s on this device", audio_fail: "Couldn't prepare the audio.", step2: "What the guideline says",
+    },
+    fr: {
+      langName: { en: "anglais", fr: "français", es: "espagnol" },
+      reason_search: "Recherche dans les protocoles", reason_read: "Lecture du protocole correspondant", reason_think: "Raisonnement selon le protocole",
+      st_detect: "Langue détectée : {lang}", st_translate_in: "Cas traduit en anglais", st_retrieve: "{n} passages OMS consultés",
+      st_reason: "Raisonnement sur l'appareil", st_classify: "Classé : {cls}", st_translate_out: "Résultat traduit en {lang}", st_plan: "Plan de prise en charge OMS établi",
+      d_langdetect: "détection sur l'appareil", d_nmt_in: "NMT Bergamot sur l'appareil", d_retrieval: "recherche sémantique", d_medpsy: "MedPsy 1.7B · GPU", d_classes: "1 sur 27 classes OMS", d_nmt_out: "NMT sur l'appareil", d_grounded: "fondé sur le protocole cité",
+      cite_from: "D'après le guide OMS {protocol}", cite_from_generic: "D'après le guide OMS", cite_src: "{doc}, page {page}. Trouvé dans les protocoles sur cet appareil.",
+      classification: "Classification", classes_hint: "1 sur 27 classes OMS", conf_high: "confiance élevée", conf_medium: "confiance moyenne", conf_low: "confiance faible",
+      plan_pending: "Préparation du plan de prise en charge", plan_head: "Plan de prise en charge", plan_meds: "Médicaments", plan_supportive: "Soins de soutien", plan_home: "Soins à domicile", plan_return: "Revenir immédiatement si", plan_followup: "Suivi", plan_referral: "Orientation", plan_at_visit: "À la visite : {detail}",
+      plan_foot: "Chaque ligne est tirée textuellement des protocoles OMS sur cet appareil. Les doses sont les quantités OMS par tranche de poids ; confirmez le poids de l'enfant.",
+      sev_EMERGENCY: "Orienter maintenant", sev_URGENT: "Traiter maintenant et suivre", sev_ROUTINE: "Soins à domicile", sev_SELF_CARE: "Conseils d'autosoins", sev_UNKNOWN: "Aucun protocole correspondant",
+      audio_preparing: "Préparation de la lecture vocale…", audio_listen: "Écouter les consignes", audio_ready: "Lecture vocale prête", audio_ready_s: "Lecture vocale prête · {s} s sur cet appareil", audio_fail: "Impossible de préparer l'audio.", step2: "Ce que dit le protocole",
+    },
+    es: {
+      langName: { en: "inglés", fr: "francés", es: "español" },
+      reason_search: "Buscando en los protocolos", reason_read: "Leyendo el protocolo correspondiente", reason_think: "Razonando según el protocolo",
+      st_detect: "Idioma detectado: {lang}", st_translate_in: "Caso traducido al inglés", st_retrieve: "{n} pasajes de la OMS consultados",
+      st_reason: "Razonando en el dispositivo", st_classify: "Clasificado: {cls}", st_translate_out: "Resultado traducido al {lang}", st_plan: "Plan de manejo de la OMS elaborado",
+      d_langdetect: "detección en el dispositivo", d_nmt_in: "NMT Bergamot en el dispositivo", d_retrieval: "búsqueda semántica", d_medpsy: "MedPsy 1.7B · GPU", d_classes: "1 de 27 clases de la OMS", d_nmt_out: "NMT en el dispositivo", d_grounded: "basado en el protocolo citado",
+      cite_from: "Del manual de la OMS {protocol}", cite_from_generic: "Del manual de la OMS", cite_src: "{doc}, página {page}. Encontrado en los protocolos de este dispositivo.",
+      classification: "Clasificación", classes_hint: "1 de 27 clases de la OMS", conf_high: "confianza alta", conf_medium: "confianza media", conf_low: "confianza baja",
+      plan_pending: "Preparando el plan de manejo", plan_head: "Plan de manejo", plan_meds: "Medicamentos", plan_supportive: "Cuidados de apoyo", plan_home: "Cuidados en casa", plan_return: "Vuelva de inmediato si", plan_followup: "Seguimiento", plan_referral: "Derivación", plan_at_visit: "En la visita: {detail}",
+      plan_foot: "Cada línea está tomada textualmente de los protocolos de la OMS en este dispositivo. Las dosis son las cantidades de la OMS por franja de peso; confirme el peso del niño.",
+      sev_EMERGENCY: "Derivar ahora", sev_URGENT: "Tratar ahora y dar seguimiento", sev_ROUTINE: "Cuidados en casa", sev_SELF_CARE: "Consejos de autocuidado", sev_UNKNOWN: "Ningún protocolo correspondiente",
+      audio_preparing: "Preparando la lectura en voz alta…", audio_listen: "Escuchar las indicaciones", audio_ready: "Lectura lista", audio_ready_s: "Lectura lista · {s} s en este dispositivo", audio_fail: "No se pudo preparar el audio.", step2: "Lo que dice el protocolo",
+    },
   };
+  var uiLang = "en";
+  function t(key, params) {
+    var dict = I18N[uiLang] || I18N.en;
+    var s = dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+    if (params) for (var k in params) s = s.split("{" + k + "}").join(params[k]);
+    return s;
+  }
+  function langName(code) { return (I18N[uiLang] && I18N[uiLang].langName[code]) || code; }
+  function setUiLang(code) { if (I18N[code]) uiLang = code; }
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -202,14 +248,15 @@
     var cite = box.querySelector(".cite");
     if (cite) {
       cite.querySelector(".q").textContent = '"' + c.section + '"';
-      cite.querySelector(".src").textContent = c.doc + ", page " + c.page + ". Found in the guidelines on this device.";
+      cite.querySelector(".src").textContent = t("cite_src", { doc: c.doc, page: c.page });
       return;
     }
+    var fromTxt = c.protocol ? t("cite_from", { protocol: esc(c.protocol) }) : t("cite_from_generic");
     box.innerHTML =
       '<div class="cite">' +
-        '<span class="from">' + ICON.guide + "From the WHO " + (c.protocol ? esc(c.protocol) + " " : "") + "guideline</span>" +
+        '<span class="from">' + ICON.guide + fromTxt + "</span>" +
         '<span class="q">"' + esc(c.section) + '"</span>' +
-        '<span class="src">' + esc(c.doc) + ", page " + esc(String(c.page)) + ". Found in the guidelines on this device.</span>" +
+        '<span class="src">' + t("cite_src", { doc: esc(c.doc), page: esc(String(c.page)) }) + "</span>" +
       "</div>";
   }
 
@@ -227,10 +274,10 @@
     // styling; high gets the single accent, medium/low stay muted (severity remains the only loud colour).
     var conf = card.confidence;
     var confChip = (conf && sev !== "UNKNOWN")
-      ? '<span class="conf conf--' + esc(conf) + '" title="The model\'s self-reported confidence in this classification">' + esc(conf) + " confidence</span>"
+      ? '<span class="conf conf--' + esc(conf) + '" title="The model\'s self-reported confidence in this classification">' + esc(t("conf_" + conf)) + "</span>"
       : "";
     var dx = (classification && sev !== "UNKNOWN")
-      ? '<div class="dx"><span class="dx-label">Classification</span><span class="dx-name">' + esc(classification) + "</span>" + confChip + '<span class="dx-hint">1 of 27 WHO classes</span></div>'
+      ? '<div class="dx"><span class="dx-label">' + t("classification") + '</span><span class="dx-name">' + esc(classification) + "</span>" + confChip + '<span class="dx-hint">' + t("classes_hint") + "</span></div>"
       : "";
     // Phase 4: non-English cases are routed via an on-device English translation and the card is translated
     // back. Flag it so the worker knows the text is machine-translated while the WHO citation stays English.
@@ -244,20 +291,21 @@
     $("card").innerHTML =
       '<div class="verdict">' +
         '<div class="sev ' + sev + '">' + ico + sev + "</div>" +
-        '<div class="sev-note">' + (SEV_NOTE[sev] || "") + "</div>" +
+        '<div class="sev-note">' + t("sev_" + sev) + "</div>" +
       "</div>" +
       banner +
       dx +
       (card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
       '<div class="action">' + esc(card.action) + "</div>" +
       (flags ? '<ul class="flags">' + flags + "</ul>" : "") +
-      (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">Preparing the full management plan</div>' : "") +
-      '<div class="hear">' +
-        '<button class="btn btn--ghost" id="speak" type="button" title="Read the guidance aloud — spoken on this device, no cloud.">' + ICON.speaker + "Listen to this</button>" +
-        '<span id="ttsStatus" class="status"></span>' +
-      "</div>" +
-      '<div id="audioWrap"></div>';
-    $("speak").onclick = function () { speak(card.action); };
+      (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">' + t("plan_pending") + "</div>" : "") +
+      // Spoken guidance is prepared in the BACKGROUND once the full plan lands (see prepareGuidanceAudio):
+      // synthesize the whole management, then reveal a play button when the COMPLETE audio is ready. No
+      // autoplay of a partial clip — the worker presses play on finished audio.
+      (sev !== "UNKNOWN"
+        ? '<div class="hear"><span class="spin" aria-hidden="true"></span><span id="ttsStatus" class="status">' + t("audio_preparing") + "</span></div><div id=\"audioWrap\"></div>"
+        : "");
+    lastCard = card;
     // On a small screen the verdict can land below the fold once the reasoning box has grown;
     // bring the card into view so the severity is the first thing the worker sees.
     if (window.matchMedia && window.matchMedia("(max-width:560px)").matches) {
@@ -309,25 +357,25 @@
         var detail = (m.bands && m.bands.length) ? doseTable(m.bands) : (m.dose ? '<div class="med-sub">Dose: ' + esc(m.dose) + "</div>" : "");
         return '<div class="med">' + head + subHtml + detail + "</div>";
       }).join("");
-      parts.push(pgroup("Medicines", meds));
+      parts.push(pgroup(t("plan_meds"), meds));
     }
-    parts.push(listGroup("Supportive care", plan && plan.supportive, "item"));
-    parts.push(listGroup("Home care", plan && plan.home_care, "advice"));
-    parts.push(listGroup("Return immediately if", plan && plan.return_now, "sign"));
+    parts.push(listGroup(t("plan_supportive"), plan && plan.supportive, "item"));
+    parts.push(listGroup(t("plan_home"), plan && plan.home_care, "advice"));
+    parts.push(listGroup(t("plan_return"), plan && plan.return_now, "sign"));
     if (plan && plan.follow_up) {
       var fuInner = '<div class="prow"><span class="ptext">' + esc(plan.follow_up.when) + "</span>" + citeMini(plan.follow_up.citation) + "</div>";
-      if (plan.follow_up.detail) fuInner += '<div class="prow-detail">At the visit: ' + esc(plan.follow_up.detail) + "</div>";
-      parts.push(pgroup("Follow-up", fuInner));
+      if (plan.follow_up.detail) fuInner += '<div class="prow-detail">' + t("plan_at_visit", { detail: esc(plan.follow_up.detail) }) + "</div>";
+      parts.push(pgroup(t("plan_followup"), fuInner));
     }
-    if (plan && plan.referral) parts.push(pgroup("Referral", prow(plan.referral.criterion, plan.referral.citation)));
+    if (plan && plan.referral) parts.push(pgroup(t("plan_referral"), prow(plan.referral.criterion, plan.referral.citation)));
     parts = parts.filter(Boolean);
     if (!parts.length) { wrap.innerHTML = ""; wrap.className = ""; return; }
     wrap.className = "";
     wrap.innerHTML =
       '<div class="plan">' +
-        '<div class="plan-head">' + ICON.guide + "Management plan</div>" +
+        '<div class="plan-head">' + ICON.guide + t("plan_head") + "</div>" +
         parts.join("") +
-        '<div class="plan-foot">Every line is taken verbatim from the WHO guidelines on this device. Doses are the WHO weight-band amounts; confirm the child’s weight.</div>' +
+        '<div class="plan-foot">' + t("plan_foot") + "</div>" +
       "</div>";
   }
 
@@ -345,6 +393,21 @@
       if (ic) ic.innerHTML = ICON.checkSm;
     }
   }
+  // Build the stage label/detail in the case's language from the event's key + data (lang/count/cls),
+  // falling back to the backend's English label if a template is missing.
+  function stageLabel(d) {
+    switch (d.key) {
+      case "detect": return t("st_detect", { lang: langName(d.lang || uiLang) });
+      case "translate_in": return t("st_translate_in");
+      case "retrieve": return t("st_retrieve", { n: d.count != null ? d.count : "" });
+      case "reason": return t("st_reason");
+      case "classify": return t("st_classify", { cls: d.cls || "" });
+      case "translate_out": return t("st_translate_out", { lang: langName(d.lang || uiLang) });
+      case "plan": return t("st_plan");
+      default: return d.label || d.key;
+    }
+  }
+  var STAGE_DETAIL = { detect: "d_langdetect", translate_in: "d_nmt_in", retrieve: "d_retrieval", reason: "d_medpsy", classify: "d_classes", translate_out: "d_nmt_out", plan: "d_grounded" };
   function renderStage(d) {
     var box = $("plSteps");
     if (!box || !d || !d.key) return;
@@ -352,10 +415,11 @@
     var li = document.createElement("li");
     li.className = "pl-step is-active";
     li.setAttribute("data-key", String(d.key));
+    var detail = STAGE_DETAIL[d.key] ? t(STAGE_DETAIL[d.key]) : (d.detail || "");
     li.innerHTML =
       '<span class="pl-ic" aria-hidden="true"></span>' +
-      '<span class="pl-label">' + esc(d.label || d.key) + "</span>" +
-      (d.detail ? '<span class="pl-detail">' + esc(d.detail) + "</span>" : "");
+      '<span class="pl-label">' + esc(stageLabel(d)) + "</span>" +
+      (detail ? '<span class="pl-detail">' + esc(detail) + "</span>" : "");
     box.appendChild(li);
   }
   // On a terminal frame, close out the last spinning step so the readout never freezes mid-spin.
@@ -371,15 +435,25 @@
     // A malformed frame must be skipped, not kill the whole stream.
     try { d = JSON.parse(dataLine); } catch (e) { return; }
     if (ev === "stage") {
+      // The detect stage sets the whole flow's language, so every later stage + the card localize.
+      if (d.key === "detect" && d.lang) {
+        setUiLang(d.lang);
+        var h2 = $("h-guideline"); if (h2) h2.textContent = t("step2");
+        $("reasonLabel").textContent = t("reason_search");
+      }
       renderStage(d);
     } else if (ev === "citation") {
       renderCitation(d);
-      $("reasonLabel").textContent = "Reading the matched guideline";
+      $("reasonLabel").textContent = t("reason_read");
     } else if (ev === "first_token") {
       $("hTtft").textContent = (d.ttftMs / 1000).toFixed(1) + " s";
       // H-1 staged status: the model has started producing its assessment.
-      $("reasonLabel").textContent = "Reasoning through the protocol";
+      $("reasonLabel").textContent = t("reason_think");
     } else if (ev === "reasoning") {
+      // The model reasons in English internally. For a non-English case we DON'T stream that English text
+      // (it would break the "everything in the case's language" flow) — the localized pipeline readout shows
+      // progress and the card's translated "why" carries the reasoning in the case's language.
+      if (uiLang !== "en") return;
       var r = $("reasoning");
       // Only autoscroll if the worker is already near the bottom, so reading back does not get yanked.
       var atBottom = r.scrollHeight - r.scrollTop - r.clientHeight < 40;
@@ -399,6 +473,8 @@
       }
     } else if (ev === "plan") {
       renderPlan(d.plan);
+      // Full plan is in — synthesize the whole spoken guidance in the background now.
+      if (lastCard && lastCard.severity !== "UNKNOWN") prepareGuidanceAudio(lastCard, d.plan);
     } else if (ev === "abstain") {
       gotTerminal = true;
       renderCard(d.card);
@@ -458,7 +534,9 @@
     $("reasoningWrap").classList.remove("hidden");
     $("reasoning").textContent = "";
     if ($("plSteps")) $("plSteps").innerHTML = "";
-    $("reasonLabel").textContent = "Searching the guidelines";
+    audioReqId++; lastCard = null; // drop any spoken guidance still cooking for a previous case
+    uiLang = "en"; // reset until the detect stage sets the case's language
+    $("reasonLabel").textContent = t("reason_search");
     $("hTtft").textContent = "·"; $("hTps").textContent = "·"; $("hDev").textContent = "·";
     startReasonTimer();
     $("result").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -521,48 +599,90 @@
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runAssess(); }
   });
 
-  // ---- listen -> /tts ----
+  // ---- spoken guidance: synthesized in the BACKGROUND, revealed complete ----
+  // Rather than a click that reads one line and can cut off, we synthesize the WHOLE management once the
+  // plan lands, keep it "cooking" in the background, and only surface a play button when the COMPLETE audio
+  // is ready. The worker then presses play (no autoplay of a partial clip). The engine is single-job, so
+  // this TTS runs after the triage inference has finished and serializes behind any new request.
+  var lastCard = null;
   var lastTtsUrl = null;
-  var ttsBusy = false;
-  async function speak(text) {
-    // M-6: debounce. The @qvac engine is single-job — a second /tts fired while the first is in flight makes
-    // the engine throw "Stale job replaced by new run". Ignore re-entrant clicks and disable the button until
-    // this read finishes, so a fast double-tap can never break the current speech.
-    if (ttsBusy) return;
-    ttsBusy = true;
-    var btn = $("speak");
-    if (btn) btn.disabled = true;
+  var audioReqId = 0; // guards against a stale case's audio landing over a newer one
+
+  // Assemble a natural spoken script from the card + plan. Both are already in the case's language
+  // (translated server-side), so the TEXT is language-correct; the VOICE follows the `lang` we pass.
+  function planToSpeech(card, plan) {
+    var parts = [];
+    if (card.severity) parts.push(t("sev_" + card.severity) + ".");
+    if (card.action) parts.push(card.action);
+    if (plan) {
+      if (plan.medicines && plan.medicines.length) {
+        var meds = plan.medicines.map(function (m) {
+          return m.name + (m.strength ? ", " + m.strength : (m.dose ? ", " + m.dose : ""));
+        }).join(". ");
+        parts.push(t("plan_meds") + ": " + meds + ".");
+      }
+      if (plan.supportive && plan.supportive.length) {
+        parts.push(t("plan_supportive") + ": " + plan.supportive.map(function (x) { return x.item; }).join("; ") + ".");
+      }
+      if (plan.return_now && plan.return_now.length) {
+        parts.push(t("plan_return") + ": " + plan.return_now.map(function (x) { return x.sign; }).join("; ") + ".");
+      }
+      if (plan.follow_up && plan.follow_up.when) parts.push(t("plan_followup") + ": " + plan.follow_up.when + ".");
+    }
+    var text = parts.join(" ").replace(/\s+/g, " ").trim();
+    // The server caps /tts at 1000 chars; trim on a sentence boundary so we never cut a word mid-way.
+    if (text.length > 1000) { text = text.slice(0, 1000); text = text.slice(0, text.lastIndexOf(". ") + 1) || text; }
+    return text;
+  }
+
+  function prepareGuidanceAudio(card, plan) {
     var st = $("ttsStatus");
-    st.textContent = "Reading it aloud";
-    try {
-      var r = await fetch("/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text })
-      });
-      if (!r.ok) { st.textContent = "Could not read that aloud."; return; }
-      var blob = await r.blob();
-      // Free the previous object URL before making a new one, so repeated listens do not leak.
+    var wrap = $("audioWrap");
+    var text = planToSpeech(card, plan);
+    if (!text || !wrap) return;
+    var reqId = ++audioReqId;
+    if (st) st.textContent = t("audio_preparing");
+    fetch("/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text, lang: card.source_language || "en" }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error("tts " + r.status);
+      var perf = r.headers.get("X-Perf");
+      return r.blob().then(function (blob) { return { blob: blob, perf: perf }; });
+    }).then(function (res) {
+      // A newer case started while this was cooking — drop this stale audio.
+      if (reqId !== audioReqId) return;
       if (lastTtsUrl) { URL.revokeObjectURL(lastTtsUrl); lastTtsUrl = null; }
-      var url = URL.createObjectURL(blob);
+      var url = URL.createObjectURL(res.blob);
       lastTtsUrl = url;
-      $("audioWrap").innerHTML = "";
+      wrap.innerHTML = "";
       var audio = document.createElement("audio");
       audio.controls = true;
-      audio.autoplay = true;
+      audio.preload = "auto";
       audio.src = url;
-      audio.onerror = function () { st.textContent = "Could not play that audio."; };
-      $("audioWrap").appendChild(audio);
-      var perf = r.headers.get("X-Perf");
-      st.textContent = perf
-        ? ("spoken in " + (JSON.parse(perf).durationMs / 1000).toFixed(1) + " s · on this device")
-        : "read aloud on this device";
-    } catch (e) {
-      st.textContent = "Could not read that aloud.";
-    } finally {
-      ttsBusy = false;
-      if (btn) btn.disabled = false;
-    }
+      audio.style.display = "block";
+      audio.style.marginTop = "12px";
+      audio.style.width = "100%";
+      wrap.appendChild(audio);
+      // The play button appears only now that the COMPLETE audio is ready.
+      var btn = document.createElement("button");
+      btn.className = "btn btn--ghost";
+      btn.type = "button";
+      btn.title = "Play the spoken guidance — synthesized on this device.";
+      btn.innerHTML = ICON.speaker + t("audio_listen");
+      btn.onclick = function () { audio.play().catch(function () {}); };
+      wrap.insertBefore(btn, audio);
+      var secs = res.perf ? (JSON.parse(res.perf).durationMs / 1000).toFixed(1) : null;
+      if (st) st.textContent = secs ? t("audio_ready_s", { s: secs }) : t("audio_ready");
+      var spin = st && st.previousElementSibling;
+      if (spin && /spin/.test(spin.className)) spin.style.display = "none";
+    }).catch(function () {
+      if (reqId !== audioReqId) return;
+      if (st) st.textContent = t("audio_fail");
+      var spin = st && st.previousElementSibling;
+      if (spin && /spin/.test(spin.className)) spin.style.display = "none";
+    });
   }
 
   // Test hook (browser-safe: `module` is undefined in the browser, so this is a no-op there and the
