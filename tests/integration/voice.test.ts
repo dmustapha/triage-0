@@ -33,7 +33,7 @@ after(async () => {
 test("STT+TTS round-trip: synthesized speech transcribes back to the same words", { skip, timeout: 300_000 }, async () => {
   const phrase = "Two year old with cough and fast breathing.";
 
-  const { pcm, sampleRate, ms: ttsMs } = await orchestrator.withTts("test", (id) =>
+  const { pcm, sampleRate, ms: ttsMs } = await orchestrator.withTts("test", "en", (id) =>
     ttsTimed({ modelId: id, text: phrase, phase: "test" }),
   );
   assert.ok(pcm.length > 1000, `got PCM samples (${pcm.length})`);

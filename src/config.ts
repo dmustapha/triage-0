@@ -68,11 +68,39 @@ export function medpsySpec(): ModelSpec {
   return { role: "medpsy", modelSrc: src, modelType: "llm", ctxSize: 3072 };
 }
 
+/** TTS voices supported end-to-end (STT/translation already cover fr+es). Supertonic2 is multilingual. */
+export const TTS_LANGS = ["en", "fr", "es"] as const;
+export type TtsLang = (typeof TTS_LANGS)[number];
+
+/**
+ * Voice model per language. The multilingual Supertonic2 GGUF speaks en/fr/es, but the `language` is a
+ * LOAD-TIME engine option (the per-call TTSRunInput has no language field), so each language is its own
+ * load. The orchestrator keeps ONE voice resident and swaps it when the language changes — cheap on the
+ * 8GB target because the spoken guidance is synthesized in the BACKGROUND, so a voice reload is hidden.
+ */
+export function ttsSpec(lang: TtsLang): ModelSpec {
+  return {
+    role: "tts",
+    modelSrc: "TTS_MULTILINGUAL_SUPERTONIC2_Q8_0",
+    modelType: "tts",
+    modelConfig: { ttsEngine: "supertonic", language: lang },
+  };
+}
+
 export const registry = {
   // Built-in SDK descriptor tokens — confirmed exported by @qvac/sdk@0.13.3 (RECONCILE.md).
-  stt: { role: "stt", modelSrc: "WHISPER_EN_TINY_Q8_0", modelType: "whisper" } as ModelSpec,
-  // TTS load REQUIRES modelConfig (the load-model union's tts branch is non-optional) — RECONCILE.md Phase-3.
-  tts: { role: "tts", modelSrc: "TTS_EN_SUPERTONIC_Q8_0", modelType: "tts", modelConfig: { ttsEngine: "supertonic", language: "en" } } as ModelSpec,
+  // STT: multilingual SMALL (was tiny.en — English-only + least accurate). Small transcribes en/fr/es and
+  // is far more accurate on real speech. `detect_language:true` auto-detects the spoken language and
+  // `translate:false` keeps the transcript in THAT language (the default translate-to-English would turn a
+  // French case into English text, which would then skip the multilingual pipeline). So French speech →
+  // French text in the box → the triage flow detects FR and translates as designed.
+  // `language:"auto"` makes whisper.cpp auto-detect the spoken language AND transcribe in it; `translate:false`
+  // keeps the transcript in that language (the default would translate a French case to English text, which
+  // then skips the multilingual pipeline). NB: `detect_language` is a DETECT-ONLY mode (returns the language
+  // without transcribing) — the wrong flag here; language:"auto" is what enables auto-detect + transcription.
+  stt: { role: "stt", modelSrc: "WHISPER_SMALL_Q8_0", modelType: "whisper", modelConfig: { language: "auto", translate: false } } as ModelSpec,
+  // Default voice = English; ttsSpec(lang) swaps in fr/es on demand (see orchestrator.withTts).
+  tts: ttsSpec("en"),
   embeddings: {
     role: "embeddings",
     modelSrc: process.env.EMBED_SRC ?? "GTE_LARGE_FP16",

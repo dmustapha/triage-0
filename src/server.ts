@@ -15,7 +15,7 @@ import { readFileSync, existsSync, writeFileSync, rmSync, mkdtempSync } from "no
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { config, translations } from "./config.js";
+import { config, translations, TTS_LANGS, type TtsLang } from "./config.js";
 import { orchestrator } from "./qvac/orchestrator.js";
 import { transcribeTimed, ttsTimed } from "./qvac/engine.js";
 import { translateCaseToEnglish, translateCardAndPlanFromEnglish, translatePlanFromEnglish } from "./qvac/translation.js";
@@ -237,8 +237,10 @@ app.post("/triage", async (req: Request, res: Response) => {
     // (detect + case→English translation happened inside translateCaseToEnglish above; retrieve/reason/
     // classify/plan fire below). Additive + ignorable — the wire contract (citation<first_token<card<
     // plan<done) is unchanged. Emitted only on the proceeding path (abstain stays exactly [abstain,done]).
+    // Each stage carries the raw data (lang / count / cls) so the frontend can render the label in the
+    // case's language; `label`/`detail` remain the English fallback for any non-localized consumer.
     const LANG_NAME: Record<string, string> = { en: "English", fr: "Français", es: "Español" };
-    send("stage", { key: "detect", label: `Detected ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device langdetect" });
+    send("stage", { key: "detect", label: `Detected ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device langdetect", lang: sourceLang });
     if (sourceLang !== "en") send("stage", { key: "translate_in", label: "Translated case → English", detail: "on-device Bergamot NMT" });
 
     const { groundedHits, retrieval, topHits } = await retrieveGrounding(english, ctx);
@@ -252,7 +254,7 @@ app.post("/triage", async (req: Request, res: Response) => {
       return endStream();
     }
 
-    send("stage", { key: "retrieve", label: `Searched ${chunkCount()} WHO passages`, detail: `${retrieval} retrieval` });
+    send("stage", { key: "retrieve", label: `Searched ${chunkCount()} WHO passages`, detail: `${retrieval} retrieval`, count: chunkCount() });
 
     // Citation lands first (< 2s) — the demo's early payoff.
     const top = grounding[0];
@@ -282,8 +284,8 @@ app.post("/triage", async (req: Request, res: Response) => {
       },
     });
 
-    send("stage", { key: "classify", label: `Classified: ${result.classification}`, detail: "1 of 27 WHO classes" });
-    if (sourceLang !== "en") send("stage", { key: "translate_out", label: `Translated output → ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device NMT" });
+    send("stage", { key: "classify", label: `Classified: ${result.classification}`, detail: "1 of 27 WHO classes", cls: result.classification });
+    if (sourceLang !== "en") send("stage", { key: "translate_out", label: `Translated output → ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device NMT", lang: sourceLang });
 
     // PHASE 4: translate the card back to the source language (action/reasoning/red_flags + the `translated`
     // flag) before it streams; the English protocol_citation is kept. English → no-op.
@@ -316,9 +318,13 @@ app.post("/tts", async (req: Request, res: Response) => {
   if (text.length > MAX_TTS_CHARS) {
     return res.status(400).json({ error: "Text is too long to read aloud. Please shorten it." });
   }
+  // The voice follows the case's language so a French plan is spoken in French. Only en/fr/es have a
+  // supported voice; anything else falls back to English (the spoken text is still correct).
+  const reqLang = String(req.body?.lang ?? "en").toLowerCase();
+  const lang = (TTS_LANGS as readonly string[]).includes(reqLang) ? (reqLang as TtsLang) : "en";
   try {
     const { pcm, sampleRate, ms } = await withInferenceLock(() =>
-      withTimeout(orchestrator.withTts("tts", (id) => ttsTimed({ modelId: id, text, phase: "tts" })), VOICE_TIMEOUT_MS, "tts"),
+      withTimeout(orchestrator.withTts("tts", lang, (id) => ttsTimed({ modelId: id, text, phase: "tts" })), VOICE_TIMEOUT_MS, "tts"),
     );
     const wav = pcmInt16ToWav(pcm, sampleRate);
     res.setHeader("Content-Type", "audio/wav");
@@ -412,7 +418,7 @@ export function startServer(port = config.port) {
       if (!process.env.TRIAGE0_NO_VOICE_PREWARM) {
         try {
           await orchestrator.withStt("prewarm-stt", async () => { /* ensure loads + (resident) keeps STT */ });
-          await orchestrator.withTts("prewarm-tts", (id) => ttsTimed({ modelId: id, text: "Ready.", phase: "prewarm-tts" }));
+          await orchestrator.withTts("prewarm-tts", "en", (id) => ttsTimed({ modelId: id, text: "Ready.", phase: "prewarm-tts" }));
           process.stdout.write("[triage-0] voice models pre-warmed; first /tts and /transcribe will be fast\n");
         } catch (err) {
           process.stderr.write(`[triage-0] voice pre-warm skipped: ${(err as Error)?.message ?? err}\n`);
