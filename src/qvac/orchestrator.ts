@@ -8,7 +8,7 @@
 // Phase 2's triage takes caller-loaded model ids (TriageContext), so the orchestrator exposes
 // getMedpsy()/getEmbeddings() that the server feeds into runTriage — the orchestrator owns lifecycle,
 // triage stays pure and testable.
-import { config, registry, medpsySpec, type ModelSpec } from "../config.js";
+import { config, registry, medpsySpec, ttsSpec, type ModelSpec, type TtsLang } from "../config.js";
 import { loadModelTimed, unloadModelTimed } from "./engine.js";
 import { close } from "./sdk.js";
 
@@ -92,8 +92,26 @@ class Orchestrator {
     }
   }
 
-  async withTts<T>(phase: string, fn: (modelId: string) => Promise<T>): Promise<T> {
-    const id = await this.ensure(registry.tts, phase);
+  /**
+   * Language-aware TTS. The multilingual voice's language is fixed at LOAD time, so when the requested
+   * language differs from the resident voice we force-unload it and load the new one (even in "resident"
+   * mode, where release() would otherwise keep it). Only ONE voice is ever resident — memory-safe on 8GB.
+   * The reload cost is hidden because spoken guidance is synthesized in the background.
+   */
+  async withTts<T>(phase: string, lang: TtsLang, fn: (modelId: string) => Promise<T>): Promise<T> {
+    const spec = ttsSpec(lang);
+    const current = this.residents.get("tts");
+    const currentLang = current?.spec.modelConfig?.language;
+    if (current && currentLang !== lang) {
+      // Different language than what's loaded — force-unload before loading the new voice.
+      try {
+        await unloadModelTimed(current.modelId, "tts", phase);
+      } catch {
+        /* GPU may have freed it externally; drop the stale handle either way */
+      }
+      this.residents.delete("tts");
+    }
+    const id = await this.ensure(spec, phase);
     try {
       return await fn(id);
     } finally {
