@@ -40,8 +40,16 @@
         <div class="panel">
           <p class="hint">Speak or type the age and what you see.</p>
           <textarea id="case" aria-label="Patient case" placeholder="For example: two year old, cough for three days, breathing fast, still drinking."></textarea>
+          <!-- Multilingual is a core capability (langdetect + on-device Bergamot round-trip). Advertise it
+               and let one tap fill a real example in each language, so a judge can try FR/ES immediately. -->
+          <p class="multiling">Understands <b>English</b>, <b>Français</b> and <b>Español</b> — detected and translated on this device.</p>
+          <div class="seeds" id="seeds" aria-label="Fill an example case">
+            <button class="seed" type="button" data-fill="18 month old, watery diarrhoea for 2 days, sunken eyes, restless and irritable, drinks eagerly when offered water.">English example</button>
+            <button class="seed" type="button" data-fill="Enfant de 2 ans, forte fièvre depuis 2 jours, très somnolent et refuse de boire.">Exemple français</button>
+            <button class="seed" type="button" data-fill="Niña de 3 años, tos y respiración rápida desde hace 4 días, sigue comiendo.">Ejemplo español</button>
+          </div>
           <div class="actions">
-            <button class="btn btn--ghost" id="rec" type="button"><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>Speak</button>
+            <button class="btn btn--ghost" id="rec" type="button" title="Speak the case — transcribed on this device. Nothing is uploaded."><svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>Speak</button>
             <button class="btn btn--primary" id="assess" type="button">Get guidance<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             <span id="status" class="status" role="status"></span>
           </div>
@@ -55,6 +63,10 @@
           <div id="citationBox" class="hidden"></div>
           <div id="reasoningWrap" class="hidden" aria-live="polite" aria-atomic="false">
             <div class="muted" style="display:flex; align-items:center; gap:9px; margin-bottom:9px; font-size:13.5px"><span class="spin" aria-hidden="true"></span><span id="reasonLabel">Searching the guidelines</span><span id="reasonTimer" class="rtimer" aria-hidden="true"></span></div>
+            <!-- On-device pipeline readout: each row is a REAL step the server emitted as an SSE `stage`
+                 event (detect -> translate -> retrieve -> reason -> classify -> plan). Fills the reasoning
+                 wait with honest proof of the 6-model on-device pipeline, not a decorative animation. -->
+            <ol id="plSteps" class="pl-steps" aria-label="On-device pipeline steps"></ol>
             <div class="reason" id="reasoning"></div>
           </div>
           <div id="card" class="hidden" role="status" aria-live="polite"></div>
@@ -66,6 +78,9 @@
       <section aria-label="Live performance">
         <div class="panel">
           <p class="perf-lead"><b>This ran on the device.</b> No network was used.</p>
+          <!-- On-device proof, fed by /health: the egress guard's real armed/strict/violations count and
+               the resident model. Honest by construction — the server blocks egress and reports it here. -->
+          <div id="odProof" class="od-proof" hidden></div>
           <div class="nums">
             <div class="num"><div class="k">First answer in</div><div class="v" id="hTtft">·</div></div>
             <div class="num"><div class="k">Tokens / sec</div><div class="v" id="hTps">·</div></div>

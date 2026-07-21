@@ -13,7 +13,10 @@
     alert: '<svg aria-hidden="true" class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 8v5M12 16.5v.5"/><path d="M10.3 3.8 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z"/></svg>',
     check: '<svg aria-hidden="true" class="sev-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
     rec: '<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>',
-    stop: '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+    stop: '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    checkSm: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+    shield: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+    chip: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v3M14 3v3M10 18v3M14 18v3M3 10h3M3 14h3M18 10h3M18 14h3"/></svg>'
   };
 
   var SEV_NOTE = {
@@ -33,6 +36,39 @@
   // ---- guidelines loaded count (for the live readout) + empty-store setup banner (H-7) ----
   fetch("/health").then(function (r) { return r.json(); }).then(function (h) {
     if ($("hChunks")) $("hChunks").textContent = h.chunks != null ? h.chunks : "·";
+
+    // Header badge: drive it from the SERVER's egress guard, not navigator.onLine. `navigator.onLine`
+    // reports network REACHABILITY (a judge on wifi sees "Online", which wrongly implies cloud use); the
+    // real guarantee is that the server's egress guard is armed + strict with 0 violations this session.
+    var eg = h.egress || {};
+    var net = $("net");
+    if (net && eg.armed) {
+      var btxt = net.querySelector(".badge-txt");
+      if (btxt) btxt.textContent = "On-device";
+      net.classList.add("is-offline");   // accent styling = the confident, guaranteed state
+      net.classList.remove("is-online");
+      net.dataset.egress = "1";           // claim the badge so net.js won't repaint it (see net.js)
+      net.title = "On-device only. Egress guard armed" + (eg.strict ? " (strict)" : "") +
+        " — network calls this session: " + (eg.violations || 0) + " blocked.";
+    }
+
+    // On-device proof chips: the egress guarantee + the resident model, both read from /health.
+    var proof = $("odProof");
+    if (proof) {
+      var chips = [];
+      if (eg.armed) {
+        chips.push(
+          '<span class="od-chip od-chip--seal">' + ICON.shield +
+          "Network calls this session: " + (eg.violations || 0) +
+          (eg.strict ? " &middot; egress blocked (strict)" : "") + "</span>"
+        );
+      }
+      if (h.medpsy) {
+        chips.push('<span class="od-chip">' + ICON.chip + "MedPsy " + esc(String(h.medpsy).toUpperCase()) + " &middot; runs on this Mac</span>");
+      }
+      if (chips.length) { proof.innerHTML = chips.join(""); proof.hidden = false; }
+    }
+
     // The RAG store is not ready if no chunks are loaded (citation map missing) OR the native vector store
     // returned no hits on the startup self-test (ragLive===false — store wiped). Either way every triage
     // would abstain, so surface a loud, actionable banner instead of letting it look like intended behavior.
@@ -84,6 +120,19 @@
     }
   }
 
+  // ---- language example chips: one tap fills a real case (advertises the multilingual pipeline) ----
+  var seedRow = $("seeds");
+  if (seedRow) {
+    seedRow.querySelectorAll(".seed").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var t = b.getAttribute("data-fill") || "";
+        var ta = $("case");
+        if (ta) { ta.value = t; ta.focus(); }
+        if ($("status")) $("status").textContent = "";
+      });
+    });
+  }
+
   // ---- record -> /transcribe ----
   var mediaRec = null, chunks = [];
   if ($("rec")) $("rec").onclick = async function () {
@@ -123,7 +172,9 @@
           // successful "heard in Xs" with a blank box — nudge the user to retry or type instead.
           if (j.text && j.text.trim()) {
             $("case").value = j.text.trim();
-            $("status").textContent = j.perf ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s") : "";
+            $("status").textContent = j.perf
+              ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s · on this device")
+              : "heard, on this device";
           } else {
             $("status").textContent = "Didn't catch that — try speaking again, or type the case.";
           }
@@ -156,13 +207,14 @@
     }
     box.innerHTML =
       '<div class="cite">' +
-        '<span class="from">' + ICON.guide + 'From the WHO guide</span>' +
+        '<span class="from">' + ICON.guide + "From the WHO " + (c.protocol ? esc(c.protocol) + " " : "") + "guideline</span>" +
         '<span class="q">"' + esc(c.section) + '"</span>' +
         '<span class="src">' + esc(c.doc) + ", page " + esc(String(c.page)) + ". Found in the guidelines on this device.</span>" +
       "</div>";
   }
 
   function renderCard(card, classification) {
+    finishStages();
     $("reasoningWrap").classList.add("hidden");
     $("card").classList.remove("hidden");
     var sev = card.severity;
@@ -171,8 +223,14 @@
     // Clinical order: Severity (how urgent) -> Classification (what it is) -> Why -> Action -> Management.
     // The WHO classification is shown as "Classification" (not "Diagnosis"): IMCI/mhGAP produce a
     // protocol classification, and the tool is decision-SUPPORT, not a diagnoser (see the disclaimer).
+    // 1D: the model's self-reported confidence (already in the payload — previously dropped). Neutral
+    // styling; high gets the single accent, medium/low stay muted (severity remains the only loud colour).
+    var conf = card.confidence;
+    var confChip = (conf && sev !== "UNKNOWN")
+      ? '<span class="conf conf--' + esc(conf) + '" title="The model\'s self-reported confidence in this classification">' + esc(conf) + " confidence</span>"
+      : "";
     var dx = (classification && sev !== "UNKNOWN")
-      ? '<div class="dx"><span class="dx-label">Classification</span><span class="dx-name">' + esc(classification) + "</span></div>"
+      ? '<div class="dx"><span class="dx-label">Classification</span><span class="dx-name">' + esc(classification) + "</span>" + confChip + '<span class="dx-hint">1 of 27 WHO classes</span></div>'
       : "";
     // Phase 4: non-English cases are routed via an on-device English translation and the card is translated
     // back. Flag it so the worker knows the text is machine-translated while the WHO citation stays English.
@@ -195,7 +253,7 @@
       (flags ? '<ul class="flags">' + flags + "</ul>" : "") +
       (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">Preparing the full management plan</div>' : "") +
       '<div class="hear">' +
-        '<button class="btn btn--ghost" id="speak" type="button">' + ICON.speaker + "Listen to this</button>" +
+        '<button class="btn btn--ghost" id="speak" type="button" title="Read the guidance aloud — spoken on this device, no cloud.">' + ICON.speaker + "Listen to this</button>" +
         '<span id="ttsStatus" class="status"></span>' +
       "</div>" +
       '<div id="audioWrap"></div>';
@@ -273,6 +331,36 @@
       "</div>";
   }
 
+  // ---- on-device pipeline readout ----
+  // Each SSE `stage` event is a REAL step the server just ran. Advancing the checklist marks the prior
+  // active step done (a check) and appends the new one as active (a spinner). Truthful by construction:
+  // a row exists only because its step actually executed on this device. Ignored if the list is absent.
+  function markActiveDone() {
+    var box = $("plSteps");
+    if (!box) return;
+    var active = box.querySelector(".pl-step.is-active");
+    if (active) {
+      active.className = "pl-step is-done";
+      var ic = active.querySelector(".pl-ic");
+      if (ic) ic.innerHTML = ICON.checkSm;
+    }
+  }
+  function renderStage(d) {
+    var box = $("plSteps");
+    if (!box || !d || !d.key) return;
+    markActiveDone();
+    var li = document.createElement("li");
+    li.className = "pl-step is-active";
+    li.setAttribute("data-key", String(d.key));
+    li.innerHTML =
+      '<span class="pl-ic" aria-hidden="true"></span>' +
+      '<span class="pl-label">' + esc(d.label || d.key) + "</span>" +
+      (d.detail ? '<span class="pl-detail">' + esc(d.detail) + "</span>" : "");
+    box.appendChild(li);
+  }
+  // On a terminal frame, close out the last spinning step so the readout never freezes mid-spin.
+  function finishStages() { markActiveDone(); }
+
   function handleEvent(block) {
     // SSE comment frames (keep-alives) start with ":". Ignore them, they carry no event.
     if (block.charAt(0) === ":") return;
@@ -282,7 +370,9 @@
     var d;
     // A malformed frame must be skipped, not kill the whole stream.
     try { d = JSON.parse(dataLine); } catch (e) { return; }
-    if (ev === "citation") {
+    if (ev === "stage") {
+      renderStage(d);
+    } else if (ev === "citation") {
       renderCitation(d);
       $("reasonLabel").textContent = "Reading the matched guideline";
     } else if (ev === "first_token") {
@@ -367,6 +457,7 @@
     $("err").textContent = "";
     $("reasoningWrap").classList.remove("hidden");
     $("reasoning").textContent = "";
+    if ($("plSteps")) $("plSteps").innerHTML = "";
     $("reasonLabel").textContent = "Searching the guidelines";
     $("hTtft").textContent = "·"; $("hTps").textContent = "·"; $("hDev").textContent = "·";
     startReasonTimer();
@@ -463,7 +554,9 @@
       audio.onerror = function () { st.textContent = "Could not play that audio."; };
       $("audioWrap").appendChild(audio);
       var perf = r.headers.get("X-Perf");
-      st.textContent = perf ? ("spoken in " + (JSON.parse(perf).durationMs / 1000).toFixed(1) + " s") : "";
+      st.textContent = perf
+        ? ("spoken in " + (JSON.parse(perf).durationMs / 1000).toFixed(1) + " s · on this device")
+        : "read aloud on this device";
     } catch (e) {
       st.textContent = "Could not read that aloud.";
     } finally {
@@ -480,6 +573,7 @@
       renderCitation: renderCitation,
       renderCard: renderCard,
       renderPlan: renderPlan,
+      renderStage: renderStage,
       doseTable: doseTable,
       handleEvent: handleEvent,
       shortDoc: shortDoc,
