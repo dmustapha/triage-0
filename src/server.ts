@@ -233,6 +233,14 @@ app.post("/triage", async (req: Request, res: Response) => {
       return endStream();
     }
 
+    // Representation: a TRUTHFUL on-device pipeline readout. Each `stage` marks a REAL step that has run
+    // (detect + case→English translation happened inside translateCaseToEnglish above; retrieve/reason/
+    // classify/plan fire below). Additive + ignorable — the wire contract (citation<first_token<card<
+    // plan<done) is unchanged. Emitted only on the proceeding path (abstain stays exactly [abstain,done]).
+    const LANG_NAME: Record<string, string> = { en: "English", fr: "Français", es: "Español" };
+    send("stage", { key: "detect", label: `Detected ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device langdetect" });
+    if (sourceLang !== "en") send("stage", { key: "translate_in", label: "Translated case → English", detail: "on-device Bergamot NMT" });
+
     const { groundedHits, retrieval, topHits } = await retrieveGrounding(english, ctx);
     // Grounding is best-effort now (abstain already decided by the router): threshold-passing hits when
     // present, else the top chunks so an in-domain case still gets a citation panel + reason excerpts.
@@ -243,6 +251,8 @@ app.post("/triage", async (req: Request, res: Response) => {
       send("done", { ok: true });
       return endStream();
     }
+
+    send("stage", { key: "retrieve", label: `Searched ${chunkCount()} WHO passages`, detail: `${retrieval} retrieval` });
 
     // Citation lands first (< 2s) — the demo's early payoff.
     const top = grounding[0];
@@ -257,6 +267,7 @@ app.post("/triage", async (req: Request, res: Response) => {
 
     // Stream reasoning tokens as the model thinks (strip <think> tags client-side is unnecessary —
     // the deltas already include them; we surface a "reasoning…" affordance in the UI).
+    send("stage", { key: "reason", label: "Reasoning on-device", detail: "MedPsy 1.7B · GPU" });
     const reasonStart = Date.now();
     let firstDeltaSent = false;
     const result = await triageFromHits(english, grounding, ctx, {
@@ -271,6 +282,9 @@ app.post("/triage", async (req: Request, res: Response) => {
       },
     });
 
+    send("stage", { key: "classify", label: `Classified: ${result.classification}`, detail: "1 of 27 WHO classes" });
+    if (sourceLang !== "en") send("stage", { key: "translate_out", label: `Translated output → ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device NMT" });
+
     // PHASE 4: translate the card back to the source language (action/reasoning/red_flags + the `translated`
     // flag) before it streams; the English protocol_citation is kept. English → no-op.
     const outCard = sourceLang === "en"
@@ -283,6 +297,7 @@ app.post("/triage", async (req: Request, res: Response) => {
     // progressively fills in. assemblePlan never throws (returns an empty plan on failure).
     const plan = await assemblePlan(result.classification, result.card.severity, grounding, ctx);
     const outPlan = await translatePlanFromEnglish(plan, sourceLang);
+    send("stage", { key: "plan", label: "Built WHO management plan", detail: "grounded in the cited protocol" });
     send("plan", { plan: outPlan });
     send("done", { ok: true });
     endStream();

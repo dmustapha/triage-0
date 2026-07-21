@@ -79,6 +79,14 @@ test("grounded /triage: full event ORDER citation<first_token<reasoning<card<pla
   assert.equal(kinds[kinds.length - 1], "done", "done is the terminal event");
   assert.ok(kinds.filter((k) => k === "reasoning").length >= 1, "at least one reasoning delta streamed");
   assert.ok(!kinds.includes("error"), "a grounded case never emits an error event");
+
+  // Representation: additive on-device pipeline readout. Each `stage` marks a REAL step; they are
+  // ignorable by any existing consumer and never reorder the load-bearing citation/card/plan sequence.
+  const stageKeys = events.filter((e) => e.event === "stage").map((e) => e.data.key);
+  for (const s of ["detect", "retrieve", "reason", "classify", "plan"]) {
+    assert.ok(stageKeys.includes(s), `stage readout covers the real "${s}" step`);
+  }
+  assert.ok(idx("stage") >= 0 && idx("stage") < idx("card"), "stages stream before the card they describe");
 });
 
 test("grounded /triage: per-event payload SCHEMA (citation / first_token / card / plan)", { skip, timeout: 300_000 }, async () => {
