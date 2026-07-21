@@ -91,7 +91,8 @@ test("handleEvent dispatches citation then card (citation-first SSE order)", () 
   const doc = dom.window.document;
   doc.getElementById("citationBox")!.innerHTML = "";
   fe.handleEvent("event: citation\ndata: " + JSON.stringify({ protocol: "IMCI", doc: "WHO IMCI Chart Booklet (2014)", page: 7, section: "DYSENTERY Give ciprofloxacin", score: 0.8, retrieval: "semantic" }));
-  assert.match(doc.getElementById("citationBox")!.innerHTML, /From the WHO guide/);
+  // The citation names its corpus (IMCI vs mhGAP) from the event's `protocol` field.
+  assert.match(doc.getElementById("citationBox")!.innerHTML, /From the WHO IMCI guideline/);
   fe.handleEvent("event: card\ndata: " + JSON.stringify({ card: { severity: "URGENT", action: "Give ciprofloxacin", red_flags: [] }, classification: "DYSENTERY" }));
   assert.match(card(), /DYSENTERY/);
   assert.match(card(), /sev URGENT/);

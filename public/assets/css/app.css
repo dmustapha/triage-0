@@ -13,8 +13,15 @@
 .step-label h2{ font-family:var(--font-display); font-size:20px; font-weight:600; margin:0; }
 .hint{ font-size:14px; color:var(--dim); margin:0 0 14px; }
 
-/* example chips row */
-.seeds{ display:flex; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+/* multilingual advert + example chips row */
+.multiling{ font-size:13px; color:var(--dim); margin:12px 0 10px; }
+.multiling b{ color:var(--mut); font-weight:600; }
+.seeds{ display:flex; gap:9px; flex-wrap:wrap; margin-bottom:2px; }
+.seed{ font-family:var(--font-body); font-size:12.5px; color:var(--mut); background:var(--surf-2);
+  border:1px solid var(--line-2); border-radius:var(--r-pill); padding:6px 13px; cursor:pointer;
+  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.seed:hover{ color:var(--ink); border-color:var(--accent-line); }
+.seed:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
 /* case input */
 textarea#case{
@@ -70,12 +77,40 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
   font-size:13px; }
 /* H-1 reasoning wait-timer: a muted, tabular elapsed counter next to the reasoning stage label. */
 .rtimer{ color:var(--dim); font-variant-numeric:tabular-nums; }
+
+/* On-device pipeline readout: the reasoning wait becomes a checklist of the REAL steps the server ran
+   (each row is an emitted SSE `stage`). Calm — no loud colour; the single accent marks a completed step
+   and the active spinner. Proves the 6-model on-device pipeline without a decorative dashboard. */
+.pl-steps{ list-style:none; margin:0 0 14px; padding:12px 14px; display:grid; gap:3px;
+  background:#0b0e0f; border:1px solid var(--line); border-radius:var(--r); }
+.pl-step{ display:flex; align-items:center; gap:10px; padding:5px 2px; font-size:13.5px; color:var(--dim);
+  transition:color var(--t-ui) var(--ease); }
+.pl-step .pl-ic{ width:17px; height:17px; flex:none; border-radius:var(--r-pill); box-sizing:border-box;
+  display:grid; place-items:center; border:2px solid var(--line-2); }
+.pl-step.is-active{ color:var(--ink); }
+.pl-step.is-active .pl-ic{ border-color:var(--line-2); border-top-color:var(--accent);
+  animation:pl-spin .7s linear infinite; }
+.pl-step.is-done{ color:var(--mut); }
+.pl-step.is-done .pl-ic{ border:1px solid var(--accent-line); background:var(--accent-wash); color:var(--accent); }
+.pl-step.is-done .pl-ic svg{ width:11px; height:11px; }
+.pl-step .pl-label{ font-weight:500; }
+.pl-step .pl-detail{ margin-left:auto; font-size:11.5px; color:var(--dim);
+  font-variant-numeric:tabular-nums; text-align:right; }
+@keyframes pl-spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){ .pl-step.is-active .pl-ic{ animation:none; } }
 /* H-2 Stop state: the Get-guidance button turns neutral (not the primary CTA colour) while it acts as Stop. */
 .btn.is-stopping{ background:var(--line); color:var(--ink); border-color:var(--line); }
 /* WHO classification — shown before the management plan (what it is, then what to do). */
 .dx{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); }
 .dx-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
 .dx-name{ font-size:20px; font-weight:600; color:var(--ink); }
+/* model self-reported confidence (1D) — neutral by default; high earns the single accent. Never a
+   severity colour: severity stays the only loud signal on the card. */
+.conf{ display:inline-flex; align-items:center; font-size:11.5px; font-weight:600; text-transform:capitalize;
+  padding:3px 10px; border-radius:var(--r-pill); border:1px solid var(--line-2); color:var(--mut);
+  background:var(--surf-2); }
+.conf--high{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-wash); }
+.dx-hint{ margin-left:auto; font-size:11.5px; color:var(--dim); white-space:nowrap; }
 .action{ font-size:17px; line-height:1.45; font-weight:500; margin:12px 0 10px; color:var(--ink); }
 .why{ font-size:15px; line-height:1.6; color:var(--mut); }
 .flags{ display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0; padding:0; list-style:none; }
@@ -120,7 +155,13 @@ textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border
 .plan-foot{ padding:13px 17px; background:var(--surf-2); font-size:12.5px; line-height:1.5; color:var(--dim); }
 
 /* live performance readout */
-.perf-lead{ font-size:14px; color:var(--mut); margin:0 0 14px; }
+.perf-lead{ font-size:14px; color:var(--mut); margin:0 0 12px; }
+/* on-device proof chips — the egress-guard guarantee + the resident model, straight from /health. */
+.od-proof{ display:flex; gap:9px; flex-wrap:wrap; margin:0 0 16px; }
+.od-chip{ display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:var(--r-pill);
+  font-size:12.5px; color:var(--mut); background:var(--surf-2); border:1px solid var(--line-2); }
+.od-chip svg{ width:14px; height:14px; flex:none; }
+.od-chip--seal{ color:var(--accent); background:var(--accent-wash); border-color:var(--accent-line); font-weight:500; }
 .perf-lead b{ color:var(--ink); font-weight:600; }
 .nums{
   display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
