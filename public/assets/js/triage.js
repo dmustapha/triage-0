@@ -45,6 +45,45 @@
     }
   }).catch(function () {});
 
+  // ---- audio helpers: resample any recording to 16 kHz mono WAV ----
+  // Whisper (the STT model) expects 16 kHz mono; browsers capture at 44.1/48 kHz and the @qvac SDK does
+  // NOT resample, so a raw recording transcribes to garbage (or empty for webm/opus). Decode the blob with
+  // the browser's own audio stack and re-render at 16 kHz mono, then hand /transcribe a clean WAV it reads
+  // correctly. Portable: decodeAudioData handles Chrome's webm/opus AND Safari's mp4/aac, so this also
+  // normalises the container across browsers. No server dependency (no ffmpeg needed on the host).
+  function encodeWav16(float32, sampleRate) {
+    var len = float32.length;
+    var buf = new ArrayBuffer(44 + len * 2);
+    var view = new DataView(buf);
+    var ws = function (o, s) { for (var i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+    ws(0, "RIFF"); view.setUint32(4, 36 + len * 2, true); ws(8, "WAVE");
+    ws(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    ws(36, "data"); view.setUint32(40, len * 2, true);
+    var o = 44;
+    for (var i = 0; i < len; i++) { var s = Math.max(-1, Math.min(1, float32[i])); view.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2; }
+    return new Blob([view], { type: "audio/wav" });
+  }
+  async function blobTo16kWav(blob) {
+    var AC = window.AudioContext || window["webkitAudioContext"];
+    var ctx = new AC();
+    try {
+      var decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+      var rate = 16000;
+      var frames = Math.max(1, Math.ceil(decoded.duration * rate));
+      var off = new OfflineAudioContext(1, frames, rate);
+      var src = off.createBufferSource();
+      src.buffer = decoded;
+      src.connect(off.destination);
+      src.start();
+      var rendered = await off.startRendering();
+      return encodeWav16(rendered.getChannelData(0), rate);
+    } finally {
+      try { ctx.close(); } catch (e) {}
+    }
+  }
+
   // ---- record -> /transcribe ----
   var mediaRec = null, chunks = [];
   if ($("rec")) $("rec").onclick = async function () {
@@ -65,9 +104,12 @@
         $("rec").classList.remove("is-recording");
         $("rec").innerHTML = ICON.rec + "Speak";
         $("status").textContent = "Listening to what you said";
-        var blob = new Blob(chunks, { type: mediaRec.mimeType || "audio/webm" });
+        var raw = new Blob(chunks, { type: mediaRec.mimeType || "audio/webm" });
         var fd = new FormData();
-        fd.append("audio", blob, "case.webm");
+        // Resample to 16 kHz mono so whisper reads it (the SDK won't). Fall back to the raw blob if the
+        // browser cannot decode it, so a decode quirk degrades to "try again" rather than a hard throw.
+        try { fd.append("audio", await blobTo16kWav(raw), "case.wav"); }
+        catch (rex) { fd.append("audio", raw, "case.webm"); }
         try {
           var r = await fetch("/transcribe", { method: "POST", body: fd });
           if (!r.ok) {
