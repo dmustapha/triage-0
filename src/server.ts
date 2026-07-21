@@ -87,7 +87,12 @@ app.use((_req, res, next) => {
   next();
 });
 
-app.use(express.static(resolve(process.cwd(), "public")));
+// `no-cache` = the browser may store the asset but MUST revalidate before using it (cheap: ETag → 304 when
+// unchanged). Without this a browser can serve a stale triage.js after an update — which looked like the
+// spoken guidance "only read one line" (old code) even though the current code reads the whole management.
+app.use(express.static(resolve(process.cwd(), "public"), {
+  setHeaders: (res) => { res.setHeader("Cache-Control", "no-cache"); },
+}));
 
 // Clean URL for the tool. The landing is "/" (public/index.html, served by static above); the tool
 // lives at public/app.html and is reachable at "/app.html" via static, but the landing CTA links to
