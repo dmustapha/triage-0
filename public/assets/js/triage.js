@@ -34,6 +34,7 @@
       plan_pending: "Preparing the full management plan", plan_head: "Management plan", plan_meds: "Medicines", plan_supportive: "Supportive care", plan_home: "Home care", plan_return: "Return immediately if", plan_followup: "Follow-up", plan_referral: "Referral", plan_at_visit: "At the visit: {detail}",
       plan_foot: "Every line is taken verbatim from the WHO guidelines on this device. Doses are the WHO weight-band amounts; confirm the child’s weight.",
       sev_EMERGENCY: "Refer now", sev_URGENT: "Treat now and follow up", sev_ROUTINE: "Home care", sev_SELF_CARE: "Self-care advice", sev_UNKNOWN: "No matching guideline",
+      abstain_msg: "This didn't match a WHO protocol. Check the description reads like a clinical case — the child's age and the signs you see — then rephrase or tap Speak again. If it is a real case, escalate to a clinician.",
       audio_preparing: "Preparing the spoken guidance…", audio_listen: "Listen to the guidance", audio_ready: "Spoken guidance ready", audio_ready_s: "Spoken guidance ready · {s} s on this device", audio_fail: "Couldn't prepare the audio.", step2: "What the guideline says",
     },
     fr: {
@@ -47,6 +48,7 @@
       plan_pending: "Préparation du plan de prise en charge", plan_head: "Plan de prise en charge", plan_meds: "Médicaments", plan_supportive: "Soins de soutien", plan_home: "Soins à domicile", plan_return: "Revenir immédiatement si", plan_followup: "Suivi", plan_referral: "Orientation", plan_at_visit: "À la visite : {detail}",
       plan_foot: "Chaque ligne est tirée textuellement des protocoles OMS sur cet appareil. Les doses sont les quantités OMS par tranche de poids ; confirmez le poids de l'enfant.",
       sev_EMERGENCY: "Orienter maintenant", sev_URGENT: "Traiter maintenant et suivre", sev_ROUTINE: "Soins à domicile", sev_SELF_CARE: "Conseils d'autosoins", sev_UNKNOWN: "Aucun protocole correspondant",
+      abstain_msg: "Cela ne correspond à aucun protocole OMS. Vérifiez que la description ressemble à un cas clinique — l'âge de l'enfant et les signes observés — puis reformulez ou appuyez à nouveau sur Parler. S'il s'agit d'un vrai cas, orientez vers un clinicien.",
       audio_preparing: "Préparation de la lecture vocale…", audio_listen: "Écouter les consignes", audio_ready: "Lecture vocale prête", audio_ready_s: "Lecture vocale prête · {s} s sur cet appareil", audio_fail: "Impossible de préparer l'audio.", step2: "Ce que dit le protocole",
     },
     es: {
@@ -60,6 +62,7 @@
       plan_pending: "Preparando el plan de manejo", plan_head: "Plan de manejo", plan_meds: "Medicamentos", plan_supportive: "Cuidados de apoyo", plan_home: "Cuidados en casa", plan_return: "Vuelva de inmediato si", plan_followup: "Seguimiento", plan_referral: "Derivación", plan_at_visit: "En la visita: {detail}",
       plan_foot: "Cada línea está tomada textualmente de los protocolos de la OMS en este dispositivo. Las dosis son las cantidades de la OMS por franja de peso; confirme el peso del niño.",
       sev_EMERGENCY: "Derivar ahora", sev_URGENT: "Tratar ahora y dar seguimiento", sev_ROUTINE: "Cuidados en casa", sev_SELF_CARE: "Consejos de autocuidado", sev_UNKNOWN: "Ningún protocolo correspondiente",
+      abstain_msg: "Esto no coincide con ningún protocolo de la OMS. Verifique que la descripción parezca un caso clínico — la edad del niño y los signos que observa — luego reformule o pulse Hablar de nuevo. Si es un caso real, derive a un clínico.",
       audio_preparing: "Preparando la lectura en voz alta…", audio_listen: "Escuchar las indicaciones", audio_ready: "Lectura lista", audio_ready_s: "Lectura lista · {s} s en este dispositivo", audio_fail: "No se pudo preparar el audio.", step2: "Lo que dice el protocolo",
     },
   };
@@ -217,10 +220,18 @@
           // M-6: an empty/whitespace transcript (silence, noise, or a too-short clip) must NOT look like a
           // successful "heard in Xs" with a blank box — nudge the user to retry or type instead.
           if (j.text && j.text.trim()) {
-            $("case").value = j.text.trim();
-            $("status").textContent = j.perf
-              ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s · on this device")
-              : "heard, on this device";
+            var heard = j.text.trim();
+            $("case").value = heard;
+            // Nudge if the transcript is suspiciously thin (a clipped/short recording) — otherwise it would
+            // silently route to an abstain and the worker would blame the tool, not the incomplete capture.
+            var words = heard.split(/\s+/).filter(Boolean).length;
+            if (words < 4) {
+              $("status").textContent = "That sounded brief — check the text below or tap Speak again.";
+            } else {
+              $("status").textContent = j.perf
+                ? ("heard in " + (j.perf.durationMs / 1000).toFixed(1) + " s · on this device")
+                : "heard, on this device";
+            }
           } else {
             $("status").textContent = "Didn't catch that — try speaking again, or type the case.";
           }
@@ -295,8 +306,8 @@
       "</div>" +
       banner +
       dx +
-      (card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
-      '<div class="action">' + esc(card.action) + "</div>" +
+      (sev !== "UNKNOWN" && card.reasoning ? '<div class="why">' + esc(card.reasoning) + "</div>" : "") +
+      '<div class="action">' + (sev === "UNKNOWN" ? t("abstain_msg") : esc(card.action)) + "</div>" +
       (flags ? '<ul class="flags">' + flags + "</ul>" : "") +
       (sev !== "UNKNOWN" ? '<div id="planWrap" class="plan-pending" role="status" aria-live="polite">' + t("plan_pending") + "</div>" : "") +
       // Spoken guidance is prepared in the BACKGROUND once the full plan lands (see prepareGuidanceAudio):
@@ -477,6 +488,9 @@
       if (lastCard && lastCard.severity !== "UNKNOWN") prepareGuidanceAudio(lastCard, d.plan);
     } else if (ev === "abstain") {
       gotTerminal = true;
+      // Render even an abstain in the case's language (the detect stage also set this; belt-and-suspenders).
+      if (d.lang) setUiLang(d.lang);
+      finishStages();
       renderCard(d.card);
     } else if (ev === "error") {
       gotTerminal = true;
