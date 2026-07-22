@@ -124,13 +124,18 @@ test("grounded /triage: per-event payload SCHEMA (citation / first_token / card 
   assert.ok(parsed.success, `plan matches ManagementPlanSchema (${parsed.success ? "" : JSON.stringify(parsed.error?.issues)})`);
 });
 
-test("abstain /triage: events are EXACTLY [abstain, done], card.severity UNKNOWN, no citation/card/plan", { skip, timeout: 120_000 }, async () => {
+test("abstain /triage: [stage(detect), abstain, done], card.severity UNKNOWN, lang set, no citation/card/plan", { skip, timeout: 120_000 }, async () => {
   const events = await readSse(await triage("What is the best recipe for chocolate cake?"));
   const kinds = events.map((e) => e.event);
-  assert.deepEqual(kinds, ["abstain", "done"], "off-domain abstains with exactly abstain then done");
-  const abstain = events[0].data;
+  // A `detect` stage is emitted before the abstain gate so the readout shows and the abstain localizes;
+  // the load-bearing (non-stage) contract stays exactly [abstain, done].
+  const nonStage = kinds.filter((k) => k !== "stage");
+  assert.deepEqual(nonStage, ["abstain", "done"], "off-domain abstains with abstain then done (stages aside)");
+  assert.ok(events.some((e) => e.event === "stage" && e.data.key === "detect"), "detect stage precedes abstain");
+  const abstain = events.find((e) => e.event === "abstain")!.data;
   assert.equal(abstain.card.severity, "UNKNOWN");
   assert.equal(abstain.retrieval, "abstain");
+  assert.ok("lang" in abstain, "abstain carries lang so the card renders in the case's language");
   assert.ok(!kinds.includes("citation"), "no citation on abstain (nothing matched)");
   assert.ok(!kinds.includes("card"), "no grounded card on abstain");
   assert.ok(!kinds.includes("plan"), "no plan on abstain");

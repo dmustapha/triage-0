@@ -226,27 +226,28 @@ app.post("/triage", async (req: Request, res: Response) => {
     // Degrades to the original text on a translation fault (translation.ts) so routing always proceeds.
     const { english, sourceLang } = await translateCaseToEnglish(caseText);
 
+    // Representation: a TRUTHFUL on-device pipeline readout. Each `stage` marks a REAL step that has run
+    // (detect + case→English translation happened inside translateCaseToEnglish above; retrieve/reason/
+    // classify/plan fire below). Additive + ignorable — the wire contract (citation<first_token<card<
+    // plan<done) is unchanged. Emitted BEFORE the abstain gate too, so that (a) the readout always shows a
+    // step ran, and (b) the frontend learns the case's language and renders even an abstain in it. Each
+    // stage carries the raw data (lang/count/cls) so the frontend can localize; label/detail are the fallback.
+    const LANG_NAME: Record<string, string> = { en: "English", fr: "Français", es: "Español" };
+    send("stage", { key: "detect", label: `Detected ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device langdetect", lang: sourceLang });
+    if (sourceLang !== "en") send("stage", { key: "translate_in", label: "Translated case → English", detail: "on-device Bergamot NMT" });
+
     // PHASE 2 abstain gate: the semantic class-router decides in/out-of-domain from the case's proximity
     // to the 27 WHO class descriptors — NOT from the chunk-retrieval score (which false-abstained lay,
     // abbreviated, multi-symptom, and non-English phrasings). A truly off-domain case (adult cardiac,
     // non-medical, veterinary) matches no class well enough → abstain before the model is ever called.
+    // `lang` is passed so the abstain card renders in the case's language, not English.
     const degraded = config.residentMode === "fallback" || !ctx.embedId;
     const route = degraded ? null : await routeCase(english, ctx.embedId!);
     if (route?.offDomain) {
-      send("abstain", { card: makeAbstainCard(), retrieval: "abstain" });
+      send("abstain", { card: makeAbstainCard(), retrieval: "abstain", lang: sourceLang });
       send("done", { ok: true });
       return endStream();
     }
-
-    // Representation: a TRUTHFUL on-device pipeline readout. Each `stage` marks a REAL step that has run
-    // (detect + case→English translation happened inside translateCaseToEnglish above; retrieve/reason/
-    // classify/plan fire below). Additive + ignorable — the wire contract (citation<first_token<card<
-    // plan<done) is unchanged. Emitted only on the proceeding path (abstain stays exactly [abstain,done]).
-    // Each stage carries the raw data (lang / count / cls) so the frontend can render the label in the
-    // case's language; `label`/`detail` remain the English fallback for any non-localized consumer.
-    const LANG_NAME: Record<string, string> = { en: "English", fr: "Français", es: "Español" };
-    send("stage", { key: "detect", label: `Detected ${LANG_NAME[sourceLang] ?? sourceLang}`, detail: "on-device langdetect", lang: sourceLang });
-    if (sourceLang !== "en") send("stage", { key: "translate_in", label: "Translated case → English", detail: "on-device Bergamot NMT" });
 
     const { groundedHits, retrieval, topHits } = await retrieveGrounding(english, ctx);
     // Grounding is best-effort now (abstain already decided by the router): threshold-passing hits when
@@ -254,7 +255,7 @@ app.post("/triage", async (req: Request, res: Response) => {
     const grounding = groundedHits.length ? groundedHits : topHits;
     if (grounding.length === 0) {
       // Only reachable in degraded mode (empty keyword result) or an empty store.
-      send("abstain", { card: makeAbstainCard(), retrieval: "abstain" });
+      send("abstain", { card: makeAbstainCard(), retrieval: "abstain", lang: sourceLang });
       send("done", { ok: true });
       return endStream();
     }
