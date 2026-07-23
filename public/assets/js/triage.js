@@ -34,7 +34,7 @@
       plan_pending: "Preparing the full management plan", plan_head: "Management plan", plan_meds: "Medicines", plan_supportive: "Supportive care", plan_home: "Home care", plan_return: "Return immediately if", plan_followup: "Follow-up", plan_referral: "Referral", plan_at_visit: "At the visit: {detail}",
       plan_foot: "Every line is taken verbatim from the WHO guidelines on this device. Doses are the WHO weight-band amounts; confirm the child’s weight.",
       sev_EMERGENCY: "Refer now", sev_URGENT: "Treat now and follow up", sev_ROUTINE: "Home care", sev_SELF_CARE: "Self-care advice", sev_UNKNOWN: "No matching guideline",
-      abstain_msg: "This didn't match a WHO protocol. Check the description reads like a clinical case — the child's age and the signs you see — then rephrase or tap Speak again. If it is a real case, escalate to a clinician.",
+      abstain_msg: "This didn't match a WHO protocol. Triage-0 covers under-5 childhood illness and mental health for any age — check the description fits (the person's age and the signs you see), then rephrase or tap Speak again. If it is a real case outside this scope, escalate to a clinician.",
       audio_preparing: "Preparing the spoken guidance…", audio_listen: "Listen to the guidance", audio_ready: "Spoken guidance ready", audio_ready_s: "Spoken guidance ready · {s} s on this device", audio_fail: "Couldn't prepare the audio.", step2: "What the guideline says",
     },
     fr: {
@@ -48,7 +48,7 @@
       plan_pending: "Préparation du plan de prise en charge", plan_head: "Plan de prise en charge", plan_meds: "Médicaments", plan_supportive: "Soins de soutien", plan_home: "Soins à domicile", plan_return: "Revenir immédiatement si", plan_followup: "Suivi", plan_referral: "Orientation", plan_at_visit: "À la visite : {detail}",
       plan_foot: "Chaque ligne est tirée textuellement des protocoles OMS sur cet appareil. Les doses sont les quantités OMS par tranche de poids ; confirmez le poids de l'enfant.",
       sev_EMERGENCY: "Orienter maintenant", sev_URGENT: "Traiter maintenant et suivre", sev_ROUTINE: "Soins à domicile", sev_SELF_CARE: "Conseils d'autosoins", sev_UNKNOWN: "Aucun protocole correspondant",
-      abstain_msg: "Cela ne correspond à aucun protocole OMS. Vérifiez que la description ressemble à un cas clinique — l'âge de l'enfant et les signes observés — puis reformulez ou appuyez à nouveau sur Parler. S'il s'agit d'un vrai cas, orientez vers un clinicien.",
+      abstain_msg: "Cela ne correspond à aucun protocole OMS. Triage-0 couvre les maladies de l'enfant de moins de 5 ans et la santé mentale à tout âge — vérifiez que la description correspond (l'âge de la personne et les signes observés), puis reformulez ou appuyez à nouveau sur Parler. S'il s'agit d'un vrai cas hors de ce champ, orientez vers un clinicien.",
       audio_preparing: "Préparation de la lecture vocale…", audio_listen: "Écouter les consignes", audio_ready: "Lecture vocale prête", audio_ready_s: "Lecture vocale prête · {s} s sur cet appareil", audio_fail: "Impossible de préparer l'audio.", step2: "Ce que dit le protocole",
     },
     es: {
@@ -62,7 +62,7 @@
       plan_pending: "Preparando el plan de manejo", plan_head: "Plan de manejo", plan_meds: "Medicamentos", plan_supportive: "Cuidados de apoyo", plan_home: "Cuidados en casa", plan_return: "Vuelva de inmediato si", plan_followup: "Seguimiento", plan_referral: "Derivación", plan_at_visit: "En la visita: {detail}",
       plan_foot: "Cada línea está tomada textualmente de los protocolos de la OMS en este dispositivo. Las dosis son las cantidades de la OMS por franja de peso; confirme el peso del niño.",
       sev_EMERGENCY: "Derivar ahora", sev_URGENT: "Tratar ahora y dar seguimiento", sev_ROUTINE: "Cuidados en casa", sev_SELF_CARE: "Consejos de autocuidado", sev_UNKNOWN: "Ningún protocolo correspondiente",
-      abstain_msg: "Esto no coincide con ningún protocolo de la OMS. Verifique que la descripción parezca un caso clínico — la edad del niño y los signos que observa — luego reformule o pulse Hablar de nuevo. Si es un caso real, derive a un clínico.",
+      abstain_msg: "Esto no coincide con ningún protocolo de la OMS. Triage-0 cubre las enfermedades de menores de 5 años y la salud mental a cualquier edad — verifique que la descripción encaje (la edad de la persona y los signos que observa), luego reformule o pulse Hablar de nuevo. Si es un caso real fuera de este alcance, derive a un clínico.",
       audio_preparing: "Preparando la lectura en voz alta…", audio_listen: "Escuchar las indicaciones", audio_ready: "Lectura lista", audio_ready_s: "Lectura lista · {s} s en este dispositivo", audio_fail: "No se pudo preparar el audio.", step2: "Lo que dice el protocolo",
     },
   };
