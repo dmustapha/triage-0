@@ -30,3 +30,10 @@ export const MODEL_SOURCES: Record<ModelName, string> = {
   "medpsy-4b": "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q4_k_m-imat.gguf",
   "medpsy-1.7b": "https://huggingface.co/qvac/MedPsy-1.7B-GGUF/resolve/main/medpsy-1.7b-q4_k_m-imat.gguf",
 };
+
+/** Byte-identical weights for both backends: MODEL_DIR points the SDK at the same local GGUF llama-server loads. */
+export function resolveModelSrc(model: ModelName, env: NodeJS.ProcessEnv): string {
+  const url = MODEL_SOURCES[model];
+  if (!env.MODEL_DIR) return url;
+  return `${env.MODEL_DIR.replace(/\/$/, "")}/${url.split("/").pop()}`;
+}

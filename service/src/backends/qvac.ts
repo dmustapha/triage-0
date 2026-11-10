@@ -1,4 +1,4 @@
-import { MODEL_SOURCES, type CompleteArgs, type CompleteResult, type ModelName, type RouteBackend } from "./types.js";
+import { resolveModelSrc, type CompleteArgs, type CompleteResult, type ModelName, type RouteBackend } from "./types.js";
 
 /** The slice of @qvac/sdk 0.23 this service touches. Injectable for tests. */
 export type QvacSdkSurface = {
@@ -48,7 +48,7 @@ export function createQvacBackend(opts: QvacBackendOpts): RouteBackend {
     sdk = opts.sdk ?? (await realSdk());
     silenceSdkLogs(sdk);
     modelId = await sdk.loadModel({
-      modelSrc: MODEL_SOURCES[opts.model],
+      modelSrc: resolveModelSrc(opts.model, process.env),
       modelType: "llamacpp-completion",
       modelConfig: { ctx_size: opts.ctxSize },
     });

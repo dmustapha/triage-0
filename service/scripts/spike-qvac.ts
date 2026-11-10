@@ -7,8 +7,9 @@ const schema = {
   additionalProperties: false,
 };
 
-const b = createQvacBackend({ model: "medpsy-1.7b", ctxSize: 2048 });
-console.error("loading medpsy-1.7b ...");
+const model: "medpsy-4b" | "medpsy-1.7b" = process.env.MODEL === "medpsy-4b" ? "medpsy-4b" : "medpsy-1.7b";
+const b = createQvacBackend({ model, ctxSize: 2048 });
+console.error(`loading ${model} ...`);
 await b.start();
 const r = await b.complete({
   system: "You route emergencies to a page id. Answer with JSON only.",

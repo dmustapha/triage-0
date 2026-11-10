@@ -1,0 +1,14 @@
+__HOST__ {
+  encode zstd gzip
+  handle /route* { reverse_proxy 127.0.0.1:3020 }
+  handle /health { reverse_proxy 127.0.0.1:3020 }
+  handle {
+    root * /opt/triage0/service/public
+    file_server
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer"
+  }
+}
