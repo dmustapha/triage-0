@@ -74,3 +74,9 @@ test-results/.last-run.json
 
 # brainstorming visual-companion mockups (local only)
 .superpowers/
+
+# v1 layout
+archive/v0/node_modules/
+archive/v0/.models/
+service/node_modules/
+service/.models/
