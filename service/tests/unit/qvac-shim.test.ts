@@ -11,8 +11,9 @@ function fakeSdk(o: FakeOpts) {
     completion: (params) => {
       calls.completion = params as Record<string, unknown>;
       async function* events() { for (const text of o.deltas) yield { type: "contentDelta", text }; }
-      return { events: events(), final: Promise.resolve({ contentText: o.contentText, stats: o.stats }) };
+      return { requestId: "r1", events: events(), final: Promise.resolve({ contentText: o.contentText, stats: o.stats }) };
     },
+    cancel: async () => {},
     unloadModel: async ({ modelId }) => { calls.unloaded = modelId; },
     close: async () => { calls.closed = true; },
   };

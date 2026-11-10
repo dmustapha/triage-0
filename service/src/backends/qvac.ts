@@ -15,9 +15,11 @@ export type QvacSdkSurface = {
     responseFormat: { type: "json_schema"; json_schema: { name: string; schema: object } };
     generationParams: { predict: number; temp: number };
   }): {
+    requestId: string;
     events: AsyncIterable<{ type: string; text?: string }>;
     final: Promise<{ contentText?: string; stats?: { timeToFirstToken?: number; tokensPerSecond?: number } }>;
   };
+  cancel(params: { requestId: string }): Promise<void>;
   unloadModel(params: { modelId: string }): Promise<void>;
   close(): Promise<void> | void;
   getLogger?(namespace: string): { setLevel(level: string): void };
@@ -63,23 +65,36 @@ export function createQvacBackend(opts: QvacBackendOpts): RouteBackend {
 
   async function complete(a: CompleteArgs): Promise<CompleteResult> {
     if (!sdk || !modelId) throw new Error("qvac backend not started");
+    const live = sdk;
     const t0 = performance.now();
     let firstDeltaAt: number | null = null;
-    const run = sdk.completion({
+    const run = live.completion({
       modelId,
       history: [{ role: "system", content: a.system }, { role: "user", content: a.user }],
       stream: true,
       responseFormat: { type: "json_schema", json_schema: { name: "route", schema: a.jsonSchema } },
       generationParams: { predict: a.maxTokens, temp: 0 },
     });
-    for await (const ev of run.events) {
-      if (a.signal.aborted) throw new Error("aborted");
-      if (ev.type === "contentDelta" && firstDeltaAt === null) firstDeltaAt = performance.now();
+    // A stalled run must not outlive its request: cancel in the SDK, and never leave `final` unobserved.
+    run.final.catch(() => {});
+    const onAbort = () => { void live.cancel({ requestId: run.requestId }).catch(() => {}); };
+    a.signal.addEventListener("abort", onAbort, { once: true });
+    const aborted = new Promise<never>((_, rej) => a.signal.addEventListener("abort", () => rej(a.signal.reason), { once: true }));
+    try {
+      await Promise.race([drain(), aborted]);
+      const fin = await Promise.race([run.final, aborted]);
+      const totalMs = Math.round(performance.now() - t0);
+      const ttftMs = fin.stats?.timeToFirstToken ?? (firstDeltaAt === null ? null : Math.round(firstDeltaAt - t0));
+      return { text: fin.contentText ?? "", ttftMs, totalMs, tokensPerS: fin.stats?.tokensPerSecond ?? null };
+    } finally {
+      a.signal.removeEventListener("abort", onAbort);
     }
-    const fin = await run.final;
-    const totalMs = Math.round(performance.now() - t0);
-    const ttftMs = fin.stats?.timeToFirstToken ?? (firstDeltaAt === null ? null : Math.round(firstDeltaAt - t0));
-    return { text: fin.contentText ?? "", ttftMs, totalMs, tokensPerS: fin.stats?.tokensPerSecond ?? null };
+
+    async function drain(): Promise<void> {
+      for await (const ev of run.events) {
+        if (ev.type === "contentDelta" && firstDeltaAt === null) firstDeltaAt = performance.now();
+      }
+    }
   }
 
   return { name: "qvac", model: opts.model, start, stop, complete };

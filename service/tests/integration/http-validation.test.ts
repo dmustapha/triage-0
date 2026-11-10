@@ -53,3 +53,8 @@ test("OPTIONS /route from a non-allowlisted origin has no Access-Control-Allow-O
   const ok = await fetch(`${base}/route`, { method: "OPTIONS", headers: { origin: origins[0] } });
   assert.equal(ok.headers.get("access-control-allow-origin"), origins[0]);
 });
+
+test("POST /route with an unsupported charset -> 415, not 500", async () => {
+  const r = await fetch(`${base}/route`, { method: "POST", headers: { "content-type": "application/json; charset=klingon" }, body: JSON.stringify({ text: "he fell" }) });
+  assert.equal(r.status, 415);
+});

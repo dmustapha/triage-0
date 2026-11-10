@@ -23,7 +23,8 @@ export function buildPrompt(req: RouteRequest, catalog: Catalog): { system: stri
 
   const facts: string[] = [];
   if (req.age_band) facts.push(`- age band: ${req.age_band}`);
-  for (const a of req.answers ?? []) facts.push(`- ${a.question_id}: ${a.answer}`);
+  const known = new Set(allQuestions(catalog).map((q) => q.id));
+  for (const a of req.answers ?? []) if (known.has(a.question_id)) facts.push(`- ${a.question_id}: ${a.answer}`);
   const user = [`${FENCE_OPEN}\n${req.text}\n${FENCE_CLOSE}`, facts.length ? `Known facts:\n${facts.join("\n")}` : ""]
     .filter(Boolean)
     .join("\n");

@@ -70,6 +70,7 @@ export function createApp(deps: AppDeps): Express {
   app.use((err: Error & { type?: string; status?: number }, _req: Request, res: Response, _next: NextFunction) => {
     if (err.type === "entity.too.large") return res.status(413).json({ error: MSG.tooLong });
     if (err.type === "entity.parse.failed" || err.status === 400) return res.status(400).json({ error: MSG.empty });
+    if (typeof err.status === "number" && err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: MSG.empty });
     log.error("request_failed", err, { route: "/route", status: 500 });
     res.status(500).json({ error: MSG.serverError });
   });

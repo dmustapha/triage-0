@@ -14,7 +14,7 @@ export const RouteRequestSchema = z.object({
     .refine((s) => /[\p{L}\p{N}]/u.test(s), "text must contain a letter or digit"),
   age_band: z.enum(AGE_BANDS).optional(),
   answers: z
-    .array(z.object({ question_id: z.string().min(1), answer: z.enum(["yes", "no", "unsure"]) }))
+    .array(z.object({ question_id: z.string().regex(/^[a-z0-9_]{1,64}$/), answer: z.enum(["yes", "no", "unsure"]) }))
     .max(20)
     .optional(),
 });
