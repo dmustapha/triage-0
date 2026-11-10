@@ -5,6 +5,7 @@ import { loadCatalog, STAGE0_PATH } from "./catalog.js";
 import { routeCase } from "./router/route.js";
 import { createInferenceLock } from "./router/lock.js";
 import { createQvacBackend } from "./backends/qvac.js";
+import { createLlamaCppBackend } from "./backends/llamacpp.js";
 import type { RouteBackend } from "./backends/types.js";
 
 const config = loadConfig(process.env);
@@ -13,7 +14,7 @@ const lock = createInferenceLock();
 
 function pickBackend(): RouteBackend {
   if (config.backend === "qvac") return createQvacBackend({ model: config.model, ctxSize: 2048 });
-  throw new Error("llamacpp backend arrives in Task 6");
+  return createLlamaCppBackend({ baseUrl: config.llamaServerUrl, model: config.model });
 }
 
 const backend = pickBackend();
