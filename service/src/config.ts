@@ -1,8 +1,10 @@
 import { BACKENDS, MODELS } from "./contract.js";
 
+export const BIND_HOST = "127.0.0.1" as const;
+
 export type Config = {
   port: number;
-  host: "127.0.0.1";
+  host: typeof BIND_HOST;
   corsOrigins: string[];
   backend: (typeof BACKENDS)[number];
   model: (typeof MODELS)[number];
@@ -33,7 +35,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   }
   return {
     port: int(env, "PORT", 3020),
-    host: "127.0.0.1",
+    host: BIND_HOST,
     corsOrigins,
     backend: oneOf(env, "BACKEND", BACKENDS, "qvac"),
     model: oneOf(env, "MODEL", MODELS, "medpsy-4b"),

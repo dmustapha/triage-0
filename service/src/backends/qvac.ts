@@ -13,13 +13,15 @@ export type QvacSdkSurface = {
     history: { role: string; content: string }[];
     stream: true;
     responseFormat: { type: "json_schema"; json_schema: { name: string; schema: object } };
-    generationParams: { predict: number; temperature: number };
+    generationParams: { predict: number; temp: number };
   }): {
     events: AsyncIterable<{ type: string; text?: string }>;
     final: Promise<{ contentText?: string; stats?: { timeToFirstToken?: number; tokensPerSecond?: number } }>;
   };
   unloadModel(params: { modelId: string }): Promise<void>;
   close(): Promise<void> | void;
+  getLogger?(namespace: string): { setLevel(level: string): void };
+  SDK_ALL_LOG_ID?: string;
 };
 
 export type QvacBackendOpts = { model: ModelName; ctxSize: number; sdk?: QvacSdkSurface };
@@ -29,12 +31,22 @@ async function realSdk(): Promise<QvacSdkSurface> {
   return (await import("@qvac/sdk")) as unknown as QvacSdkSurface;
 }
 
+/** The SDK makes its own logger; it must never see stderr (v0 lesson). */
+function silenceSdkLogs(sdk: QvacSdkSurface): void {
+  try {
+    sdk.getLogger?.(sdk.SDK_ALL_LOG_ID ?? "__all__").setLevel("off");
+  } catch {
+    /* logger API absent: nothing to silence */
+  }
+}
+
 export function createQvacBackend(opts: QvacBackendOpts): RouteBackend {
   let sdk: QvacSdkSurface | null = null;
   let modelId: string | null = null;
 
   async function start(): Promise<void> {
     sdk = opts.sdk ?? (await realSdk());
+    silenceSdkLogs(sdk);
     modelId = await sdk.loadModel({
       modelSrc: MODEL_SOURCES[opts.model],
       modelType: "llamacpp-completion",
@@ -58,7 +70,7 @@ export function createQvacBackend(opts: QvacBackendOpts): RouteBackend {
       history: [{ role: "system", content: a.system }, { role: "user", content: a.user }],
       stream: true,
       responseFormat: { type: "json_schema", json_schema: { name: "route", schema: a.jsonSchema } },
-      generationParams: { predict: a.maxTokens, temperature: 0 },
+      generationParams: { predict: a.maxTokens, temp: 0 },
     });
     for await (const ev of run.events) {
       if (a.signal.aborted) throw new Error("aborted");

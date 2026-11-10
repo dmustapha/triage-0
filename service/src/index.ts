@@ -29,7 +29,7 @@ const app = createApp({
 
 const server = app.listen(config.port, config.host, () => log.info("listening", { status: config.port }));
 backend.start().then(() => { ready = true; log.info("backend_ready", { backend: backend.name, model: backend.model }); })
-  .catch((err: Error) => { log.error("backend_start_failed", { route: err.name }); process.exit(1); });
+  .catch((err: Error) => { log.error("backend_start_failed", err); process.exit(1); });
 
 async function shutdown(): Promise<void> {
   server.close();

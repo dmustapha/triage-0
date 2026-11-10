@@ -13,7 +13,7 @@ export type AppDeps = {
 export const MSG = {
   empty: "Tell us what is happening.",
   tooLong: "That is too long. A sentence or two is enough.",
-  tooMany: "Please wait a moment and try again. If someone is in danger, call for an ambulance now.",
+  tooMany: "Too many requests from this connection. If this is an emergency, call for an ambulance now.",
   serverError: "Something went wrong on our side. Call for an ambulance if you have not already.",
 } as const;
 
@@ -40,7 +40,7 @@ function validationMessage(issues: { path: PropertyKey[]; code: string }[]): str
 export function createApp(deps: AppDeps): Express {
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set("trust proxy", "loopback");
   app.use(cors(deps.corsOrigins));
   app.use(express.json({ limit: "16kb" }));
 
@@ -70,7 +70,7 @@ export function createApp(deps: AppDeps): Express {
   app.use((err: Error & { type?: string; status?: number }, _req: Request, res: Response, _next: NextFunction) => {
     if (err.type === "entity.too.large") return res.status(413).json({ error: MSG.tooLong });
     if (err.type === "entity.parse.failed" || err.status === 400) return res.status(400).json({ error: MSG.empty });
-    log.error("request_failed", { route: "/route", status: 500 });
+    log.error("request_failed", err, { route: "/route", status: 500 });
     res.status(500).json({ error: MSG.serverError });
   });
   return app;

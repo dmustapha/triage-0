@@ -39,7 +39,7 @@ test("complete() passes maxTokens as generationParams.predict", async () => {
   const b = createQvacBackend({ model: "medpsy-1.7b", ctxSize: 2048, sdk });
   await b.start();
   const r = await b.complete({ ...args, maxTokens: 77 });
-  assert.deepEqual(calls.completion!.generationParams, { predict: 77, temperature: 0 });
+  assert.deepEqual(calls.completion!.generationParams, { predict: 77, temp: 0 });
   assert.equal(r.ttftMs, null);
 });
 
