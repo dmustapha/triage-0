@@ -14,8 +14,13 @@
 | zod 3 + `scripts/patch-sdk-zod.mjs` postinstall | zod 4.6.5 inside SDK; service uses zod ^4 | `npm ls zod` | Postinstall patch dropped |
 | darwin-arm64 only tested | `@qvac/fabric-linux-arm64`, `bare-runtime 1.34.1` linux-arm64 prebuilds present | tarball inspection; live proof in Task 9 on the A1 box | |
 
-## Spike output (Mac, medpsy-1.7b)
-See below, pasted verbatim after the run.
+## Spike output (Mac M-series, medpsy-1.7b, 2026-11-10)
+```
+parsed: { page_id: 'choking' }
+timing: { ttftMs: 364.195458, totalMs: 578, tokensPerS: 40.89783529035866 }
+exit=0
+```
+Constrained JSON honoured; process exited cleanly (no hung bare worker). First run failed with `Unrecognized key: "temperature"` at generationParams; key is `temp`.
 
 ## Open items
 (none yet)
