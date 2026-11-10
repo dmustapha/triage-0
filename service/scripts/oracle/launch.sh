@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Launch the triage0-inference Ampere A1 instance. Idempotent on the NSG; retries on
-# "Out of host capacity" every 600 s up to 36 times. Never touches coldspot-web or leash-rescue.
+# "Out of host capacity" (600 s) and 429 TooManyRequests (180 s), up to 36 times. Never touches coldspot-web or leash-rescue.
 set -euo pipefail
 
 C="ocid1.tenancy.oc1..aaaaaaaaoycde4gwm3c6qduk5n4xx5wz2i2qiiupg5yioxr7st2sly4a3jbq"
@@ -63,6 +63,12 @@ for ((i = 1; i <= MAX_TRIES; i++)); do
   if grep -q "Out of host capacity" <<<"$out"; then
     log "out of host capacity; sleeping ${SLEEP_S}s"
     sleep "$SLEEP_S"
+    continue
+  fi
+  if grep -q "TooManyRequests" <<<"$out"; then
+    # Free Tier A1 launches are throttled with 429 when the region is tight; same remedy, shorter wait.
+    log "429 TooManyRequests; sleeping ${SLEEP_429_S:-180}s"
+    sleep "${SLEEP_429_S:-180}"
     continue
   fi
   log "launch failed:"; printf '%s\n' "$out" >&2
