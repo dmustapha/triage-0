@@ -1,0 +1,10 @@
+[
+  { "id": "c1", "text": "my dad just fell on the floor and hes not breathing i dont know what to do", "expect": "collapse_cpr" },
+  { "id": "c2", "text": "she is coughing and cannot speak, holding her neck", "expect": "choking" },
+  { "id": "c3", "text": "he cut his leg with the machete and blood is pouring out it wont stop", "expect": "severe_bleeding" },
+  { "id": "c4", "text": "my son ate peanuts and now his lips are swelling and he is wheezing", "expect": "anaphylaxis" },
+  { "id": "c5", "text": "my sister is shaking all over on the ground and her eyes rolled back", "expect": "seizure" },
+  { "id": "c6", "text": "grandma's face is drooping on one side and her words are slurred, it started suddenly", "expect": "stroke" },
+  { "id": "d1", "text": "my wifi is slow", "expect": null },
+  { "id": "d2", "text": "what is the capital of France", "expect": null }
+]
