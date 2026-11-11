@@ -71,6 +71,12 @@ for ((i = 1; i <= MAX_TRIES; i++)); do
     sleep "${SLEEP_429_S:-180}"
     continue
   fi
+  if grep -qiE "timed out|Connection aborted|ConnectionError|Max retries|ServiceUnavailable|Service unavailable|Temporary failure|Name or service not known" <<<"$out"; then
+    # Transient network / service error: not a verdict on capacity. Short wait, same attempt budget.
+    log "transient error (network/service); sleeping ${SLEEP_NET_S:-120}s"; printf '%s\n' "$out" | grep -m1 '"message"' >&2 || true
+    sleep "${SLEEP_NET_S:-120}"
+    continue
+  fi
   log "launch failed:"; printf '%s\n' "$out" >&2
   exit "$rc"
 done
