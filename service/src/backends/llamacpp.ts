@@ -27,6 +27,9 @@ export function createLlamaCppBackend(opts: LlamaCppOpts): RouteBackend {
         temperature: 0,
         stream: false,
         response_format: { type: "json_schema", json_schema: { name: "route", schema: a.jsonSchema } },
+        // MedPsy is a thinking model: without this it spends the whole token budget inside <think> and returns "".
+        chat_template_kwargs: { enable_thinking: false },
+        reasoning_budget: 0,
       }),
     });
     if (res.status !== 200) throw new Error(`llama-server returned ${res.status}`);

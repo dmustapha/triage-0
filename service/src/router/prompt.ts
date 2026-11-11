@@ -9,6 +9,7 @@ export function buildPrompt(req: RouteRequest, catalog: Catalog): { system: stri
   const pages = catalog.pages
     .filter((p) => p.id !== catalog.holding_page_id)
     .map((p) => `- ${p.id}: ${p.title_plain}. Cues: ${p.cues.join("; ")}`)
+    .concat([`- ${UNSURE}: Not an emergency, or cannot be placed. Cues: questions; jokes; tests; technology; nothing about a person's body or breathing`])
     .join("\n");
   const questions = allQuestions(catalog).map((q) => `- ${q.id}`).join("\n");
   const system = [

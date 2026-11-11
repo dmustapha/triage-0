@@ -31,6 +31,8 @@ test("complete() posts response_format json_schema and returns message.content",
   assert.equal(body.max_tokens, 160);
   assert.equal(body.temperature, 0);
   assert.equal(body.stream, false);
+  assert.deepEqual(body.chat_template_kwargs, { enable_thinking: false });
+  assert.equal(body.reasoning_budget, 0);
   assert.deepEqual(body.messages.map((m: { role: string }) => m.role), ["system", "user"]);
   assert.equal(b.name, "llamacpp");
 });
