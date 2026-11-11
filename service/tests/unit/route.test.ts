@@ -64,3 +64,22 @@ test("fifth concurrent caller gets fallback true (queue full) without waiting", 
   const rs = await all;
   assert.equal(rs.filter((r) => r.fallback).length, 5);
 });
+
+test("the UNSURE sentinel is in the output schema and maps to fallback", async () => {
+  const { buildOutputSchema, UNSURE } = await import("../../src/router/schema.js");
+  const s = buildOutputSchema(catalog) as any;
+  assert.ok(s.properties.candidates.items.enum.includes(UNSURE));
+  const r = await routeCase({ text: "my wifi is slow" }, deps(createFakeBackend([`{"candidates":["${UNSURE}"],"next_question_id":null,"confidence":"high"}`])));
+  assert.equal(r.fallback, true);
+  assert.deepEqual(r.candidates, []);
+});
+test("UNSURE mixed with pages -> fallback true (doubt resolves upward)", async () => {
+  const { UNSURE } = await import("../../src/router/schema.js");
+  const r = await routeCase(req, deps(createFakeBackend([`{"candidates":["choking","${UNSURE}"],"next_question_id":null,"confidence":"high"}`])));
+  assert.equal(r.fallback, true);
+});
+test("duplicate candidates are collapsed to one ranked entry", async () => {
+  const r = await routeCase(req, deps(createFakeBackend(['{"candidates":["severe_bleeding","severe_bleeding","choking"],"next_question_id":null,"confidence":"high"}'])));
+  assert.equal(r.fallback, false);
+  assert.deepEqual(r.candidates, [{ page_id: "severe_bleeding", rank: 1 }, { page_id: "choking", rank: 2 }]);
+});

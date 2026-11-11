@@ -21,10 +21,16 @@ test("buildPrompt carries age band and prior answers as facts outside the fence"
 
 test("buildOutputSchema enumerates page ids without 'holding' and all question ids", () => {
   const s = buildOutputSchema(catalog) as any;
-  assert.deepEqual(s.properties.candidates.items.enum.sort(), ["anaphylaxis", "choking", "collapse_cpr", "seizure", "severe_bleeding", "stroke"]);
+  assert.deepEqual(s.properties.candidates.items.enum.sort(), ["anaphylaxis", "choking", "collapse_cpr", "seizure", "severe_bleeding", "stroke", "unsure"]);
   assert.equal(s.properties.candidates.minItems, 1);
   assert.equal(s.properties.candidates.maxItems, 3);
   assert.equal(s.properties.next_question_id.anyOf[0].enum.length, 12);
   assert.deepEqual(s.required.sort(), ["candidates", "confidence", "next_question_id"]);
   assert.equal(s.additionalProperties, false);
+});
+
+test("system frame tells the model to answer unsure for non-emergencies", () => {
+  const { system } = buildPrompt({ text: "x" }, catalog);
+  assert.match(system, /unsure/);
+  assert.match(system, /not an emergency/i);
 });

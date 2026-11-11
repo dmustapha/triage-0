@@ -2,7 +2,7 @@ import type { RouteRequest, RouteResponse } from "../contract.js";
 import { allQuestions, type Catalog } from "../catalog.js";
 import type { RouteBackend } from "../backends/types.js";
 import { buildPrompt } from "./prompt.js";
-import { buildOutputSchema, buildOutputValidator } from "./schema.js";
+import { buildOutputSchema, buildOutputValidator, UNSURE } from "./schema.js";
 import type { InferenceLock } from "./lock.js";
 import { log } from "../log.js";
 
@@ -43,12 +43,14 @@ export async function routeCase(req: RouteRequest, deps: RouteDeps): Promise<Rou
   const v = buildOutputValidator(deps.catalog).safeParse(parsed);
   if (!v.success) return fallbackResponse(deps, t, "schema_invalid");
   if (v.data.confidence === "low") return fallbackResponse(deps, t, "low_confidence");
+  if (v.data.candidates.includes(UNSURE)) return fallbackResponse(deps, t, "unsure");
+  const pageIds = [...new Set(v.data.candidates)];
 
   const question = v.data.next_question_id
     ? allQuestions(deps.catalog).find((q) => q.id === v.data.next_question_id) ?? null
     : null;
   return {
-    candidates: v.data.candidates.map((page_id, i) => ({ page_id, rank: i + 1 })),
+    candidates: pageIds.map((page_id, i) => ({ page_id, rank: i + 1 })),
     next_question: question ? { id: question.id, text: question.text } : null,
     confidence: v.data.confidence,
     fallback: false,
