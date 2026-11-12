@@ -14,6 +14,7 @@ export type QvacSdkSurface = {
     stream: true;
     responseFormat: { type: "json_schema"; json_schema: { name: string; schema: object } };
     generationParams: { predict: number; temp: number };
+    kvCache?: boolean;
   }): {
     requestId: string;
     events: AsyncIterable<{ type: string; text?: string }>;
@@ -74,6 +75,7 @@ export function createQvacBackend(opts: QvacBackendOpts): RouteBackend {
       stream: true,
       responseFormat: { type: "json_schema", json_schema: { name: "route", schema: a.jsonSchema } },
       generationParams: { predict: a.maxTokens, temp: 0 },
+      kvCache: process.env.QVAC_KV_CACHE === "0" ? undefined : true,
     });
     // A stalled run must not outlive its request: cancel in the SDK, and never leave `final` unobserved.
     run.final.catch(() => {});

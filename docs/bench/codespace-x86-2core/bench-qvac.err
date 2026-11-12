@@ -1,0 +1,56 @@
+qvac/medpsy-4b c1 r1: 39155 ms top1=collapse_cpr ok=true
+qvac/medpsy-4b c1 r2: 38858 ms top1=collapse_cpr ok=true
+qvac/medpsy-4b c1 r3: 38710 ms top1=collapse_cpr ok=true
+qvac/medpsy-4b c2 r1: 38404 ms top1=choking ok=true
+qvac/medpsy-4b c2 r2: 38151 ms top1=choking ok=true
+qvac/medpsy-4b c2 r3: 37950 ms top1=choking ok=true
+qvac/medpsy-4b c3 r1: 39191 ms top1=severe_bleeding ok=true
+qvac/medpsy-4b c3 r2: 39157 ms top1=severe_bleeding ok=true
+qvac/medpsy-4b c3 r3: 39113 ms top1=severe_bleeding ok=true
+qvac/medpsy-4b c4 r1: 39440 ms top1=anaphylaxis ok=true
+qvac/medpsy-4b c4 r2: 39231 ms top1=anaphylaxis ok=true
+qvac/medpsy-4b c4 r3: 39321 ms top1=anaphylaxis ok=true
+qvac/medpsy-4b c5 r1: 38444 ms top1=seizure ok=true
+qvac/medpsy-4b c5 r2: 38147 ms top1=seizure ok=true
+qvac/medpsy-4b c5 r3: 38362 ms top1=seizure ok=true
+qvac/medpsy-4b c6 r1: 37279 ms top1=stroke ok=true
+qvac/medpsy-4b c6 r2: 37706 ms top1=stroke ok=true
+qvac/medpsy-4b c6 r3: 37481 ms top1=stroke ok=true
+{"ts":"2026-11-12T07:04:16.088Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d1 r1: 36134 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:04:52.581Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d1 r2: 36492 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:05:28.841Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d1 r3: 36259 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:06:05.390Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d2 r1: 36549 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:06:41.815Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d2 r2: 36423 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:07:18.246Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d2 r3: 36431 ms top1=(fallback) ok=true
+RSS qvac/medpsy-4b: 4859 MB
+qvac/medpsy-1.7b c1 r1: 15519 ms top1=collapse_cpr ok=true
+qvac/medpsy-1.7b c1 r2: 15543 ms top1=collapse_cpr ok=true
+qvac/medpsy-1.7b c1 r3: 15600 ms top1=collapse_cpr ok=true
+qvac/medpsy-1.7b c2 r1: 17442 ms top1=collapse_cpr ok=false
+qvac/medpsy-1.7b c2 r2: 17469 ms top1=collapse_cpr ok=false
+qvac/medpsy-1.7b c2 r3: 17450 ms top1=collapse_cpr ok=false
+qvac/medpsy-1.7b c3 r1: 15899 ms top1=severe_bleeding ok=true
+qvac/medpsy-1.7b c3 r2: 15837 ms top1=severe_bleeding ok=true
+qvac/medpsy-1.7b c3 r3: 16107 ms top1=severe_bleeding ok=true
+qvac/medpsy-1.7b c4 r1: 15662 ms top1=anaphylaxis ok=true
+qvac/medpsy-1.7b c4 r2: 15595 ms top1=anaphylaxis ok=true
+qvac/medpsy-1.7b c4 r3: 15630 ms top1=anaphylaxis ok=true
+qvac/medpsy-1.7b c5 r1: 15512 ms top1=seizure ok=true
+qvac/medpsy-1.7b c5 r2: 15576 ms top1=seizure ok=true
+qvac/medpsy-1.7b c5 r3: 15469 ms top1=seizure ok=true
+qvac/medpsy-1.7b c6 r1: 14770 ms top1=stroke ok=true
+qvac/medpsy-1.7b c6 r2: 14709 ms top1=stroke ok=true
+qvac/medpsy-1.7b c6 r3: 14987 ms top1=stroke ok=true
+qvac/medpsy-1.7b d1 r1: 16516 ms top1=severe_bleeding ok=false
+qvac/medpsy-1.7b d1 r2: 16516 ms top1=severe_bleeding ok=false
+qvac/medpsy-1.7b d1 r3: 16571 ms top1=severe_bleeding ok=false
+qvac/medpsy-1.7b d2 r1: 17028 ms top1=anaphylaxis ok=false
+qvac/medpsy-1.7b d2 r2: 17037 ms top1=anaphylaxis ok=false
+qvac/medpsy-1.7b d2 r3: 17073 ms top1=anaphylaxis ok=false
+RSS qvac/medpsy-1.7b: 2361 MB

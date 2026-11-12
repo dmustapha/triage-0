@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy service/ to the triage0-inference box. Usage: deploy.sh <public-ip> [BACKEND] [MODEL]
 set -euo pipefail
-IP="${1:?public ip}"; BACKEND="${2:-qvac}"; MODEL="${3:-medpsy-4b}"
+IP="${1:?public ip}"; BACKEND="${2:-llamacpp}"; MODEL="${3:-medpsy-4b}"
 KEY="${KEY:-$HOME/.ssh/triage0_oci}"
 HOST="${HOST:-$(tr . - <<<"$IP").sslip.io}"
 HERE="$(cd "$(dirname "$0")" && pwd)"; SVC="$(cd "$HERE/../.." && pwd)"

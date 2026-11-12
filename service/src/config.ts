@@ -37,7 +37,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     port: int(env, "PORT", 3020),
     host: BIND_HOST,
     corsOrigins,
-    backend: oneOf(env, "BACKEND", BACKENDS, "qvac"),
+    backend: oneOf(env, "BACKEND", BACKENDS, "llamacpp"), // measured: llama-server caches the fixed prompt; the SDK does not (Stage 0)
     model: oneOf(env, "MODEL", MODELS, "medpsy-4b"),
     llamaServerUrl: env.LLAMA_SERVER_URL ?? "http://127.0.0.1:8081",
     routeTimeoutMs: int(env, "ROUTE_TIMEOUT_MS", 20000),

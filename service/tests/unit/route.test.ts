@@ -26,8 +26,13 @@ test("unknown page id -> fallback true, candidates empty", async () => {
   assert.deepEqual(r.candidates, []);
   assert.equal(r.next_question, null);
 });
-test("unknown question id -> fallback true", async () => {
-  const r = await routeCase(req, deps(createFakeBackend(['{"candidates":["choking"],"next_question_id":"made_up","confidence":"high"}'])));
+test("a question id in the model output is ignored; the catalogue picks the first unanswered question", async () => {
+  const r = await routeCase({ text: "x", answers: [{ question_id: "choking_q1", answer: "no" }] }, deps(createFakeBackend(['{"candidates":["choking"],"confidence":"high"}'])));
+  assert.equal(r.fallback, false);
+  assert.equal(r.next_question?.id, "choking_q2");
+});
+test("unknown page id in output -> fallback true", async () => {
+  const r = await routeCase(req, deps(createFakeBackend(['{"candidates":["appendicitis"],"confidence":"high"}'])));
   assert.equal(r.fallback, true);
 });
 test("confidence low -> fallback true even with valid candidates", async () => {
@@ -79,7 +84,7 @@ test("UNSURE mixed with pages -> fallback true (doubt resolves upward)", async (
   assert.equal(r.fallback, true);
 });
 test("duplicate candidates are collapsed to one ranked entry", async () => {
-  const r = await routeCase(req, deps(createFakeBackend(['{"candidates":["severe_bleeding","severe_bleeding","choking"],"next_question_id":null,"confidence":"high"}'])));
+  const r = await routeCase(req, deps(createFakeBackend(['{"candidates":["severe_bleeding","severe_bleeding"],"next_question_id":null,"confidence":"high"}'])));
   assert.equal(r.fallback, false);
-  assert.deepEqual(r.candidates, [{ page_id: "severe_bleeding", rank: 1 }, { page_id: "choking", rank: 2 }]);
+  assert.deepEqual(r.candidates, [{ page_id: "severe_bleeding", rank: 1 }]);
 });

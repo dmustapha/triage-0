@@ -1,0 +1,88 @@
+=== EXP A: llamacpp 4B, 2 candidates, compact JSON
+llamacpp/medpsy-4b c1 r1: 8152 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c1 r2: 8143 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c1 r3: 8049 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c2 r1: 9273 ms top1=choking ok=true
+llamacpp/medpsy-4b c2 r2: 8347 ms top1=choking ok=true
+llamacpp/medpsy-4b c2 r3: 8488 ms top1=choking ok=true
+llamacpp/medpsy-4b c3 r1: 10686 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c3 r2: 8595 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c3 r3: 8577 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c4 r1: 10242 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c4 r2: 8241 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c4 r3: 8279 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c5 r1: 9536 ms top1=seizure ok=true
+llamacpp/medpsy-4b c5 r2: 9104 ms top1=seizure ok=true
+llamacpp/medpsy-4b c5 r3: 9001 ms top1=seizure ok=true
+llamacpp/medpsy-4b c6 r1: 9003 ms top1=stroke ok=true
+llamacpp/medpsy-4b c6 r2: 7088 ms top1=stroke ok=true
+llamacpp/medpsy-4b c6 r3: 7265 ms top1=stroke ok=true
+{"ts":"2026-11-12T07:26:55.463Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r1: 8478 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:27:02.865Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r2: 7402 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:27:10.449Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r3: 7583 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:27:19.394Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r1: 8943 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:27:27.031Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r2: 7634 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:27:34.620Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r3: 7588 ms top1=(fallback) ok=true
+RSS llamacpp/medpsy-4b: 4719 MB
+=== EXP B: qvac 4B, kvCache true, 2 candidates, compact JSON
+qvac/medpsy-4b c1 r1: 41522 ms top1=collapse_cpr ok=true
+qvac/medpsy-4b c1 r2: 41673 ms top1=collapse_cpr ok=true
+qvac/medpsy-4b c2 r1: 39918 ms top1=choking ok=true
+qvac/medpsy-4b c2 r2: 39534 ms top1=choking ok=true
+qvac/medpsy-4b c3 r1: 47594 ms top1=severe_bleeding ok=true
+qvac/medpsy-4b c3 r2: 44522 ms top1=severe_bleeding ok=true
+qvac/medpsy-4b c4 r1: 44892 ms top1=anaphylaxis ok=true
+qvac/medpsy-4b c4 r2: 43718 ms top1=anaphylaxis ok=true
+qvac/medpsy-4b c5 r1: 41665 ms top1=seizure ok=true
+qvac/medpsy-4b c5 r2: 41641 ms top1=seizure ok=true
+qvac/medpsy-4b c6 r1: 40317 ms top1=stroke ok=true
+qvac/medpsy-4b c6 r2: 40521 ms top1=stroke ok=true
+{"ts":"2026-11-12T07:37:32.988Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d1 r1: 38517 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:38:11.880Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d1 r2: 38761 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:38:51.148Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d2 r1: 39267 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:39:30.301Z","level":"warn","event":"route_fallback","route":"unsure","backend":"qvac","model":"medpsy-4b"}
+qvac/medpsy-4b d2 r2: 39153 ms top1=(fallback) ok=true
+RSS qvac/medpsy-4b: 2987 MB
+ALLDONE
+=== EXP C: llamacpp 4B, page+confidence only (question from catalogue)
+llamacpp/medpsy-4b c1 r1: 4849 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c1 r2: 4707 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c1 r3: 4943 ms top1=collapse_cpr ok=true
+llamacpp/medpsy-4b c2 r1: 6099 ms top1=choking ok=true
+llamacpp/medpsy-4b c2 r2: 4585 ms top1=choking ok=true
+llamacpp/medpsy-4b c2 r3: 4443 ms top1=choking ok=true
+llamacpp/medpsy-4b c3 r1: 6995 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c3 r2: 4965 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c3 r3: 5123 ms top1=severe_bleeding ok=true
+llamacpp/medpsy-4b c4 r1: 6793 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c4 r2: 5077 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c4 r3: 4911 ms top1=anaphylaxis ok=true
+llamacpp/medpsy-4b c5 r1: 6437 ms top1=seizure ok=true
+llamacpp/medpsy-4b c5 r2: 4733 ms top1=seizure ok=true
+llamacpp/medpsy-4b c5 r3: 4805 ms top1=seizure ok=true
+llamacpp/medpsy-4b c6 r1: 6076 ms top1=stroke ok=true
+llamacpp/medpsy-4b c6 r2: 4358 ms top1=stroke ok=true
+llamacpp/medpsy-4b c6 r3: 4208 ms top1=stroke ok=true
+{"ts":"2026-11-12T07:42:17.126Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r1: 5444 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:42:21.599Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r2: 4473 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:42:26.035Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d1 r3: 4435 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:42:31.718Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r1: 5681 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:42:36.116Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r2: 4397 ms top1=(fallback) ok=true
+{"ts":"2026-11-12T07:42:40.734Z","level":"warn","event":"route_fallback","route":"unsure","backend":"llamacpp","model":"medpsy-4b"}
+llamacpp/medpsy-4b d2 r3: 4617 ms top1=(fallback) ok=true
+RSS llamacpp/medpsy-4b: 4704 MB
+CDONE

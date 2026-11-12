@@ -1,5 +1,5 @@
 import type { RouteRequest, RouteResponse } from "../contract.js";
-import { allQuestions, type Catalog } from "../catalog.js";
+import type { Catalog } from "../catalog.js";
 import type { RouteBackend } from "../backends/types.js";
 import { buildPrompt } from "./prompt.js";
 import { buildOutputSchema, buildOutputValidator, UNSURE } from "./schema.js";
@@ -46,9 +46,10 @@ export async function routeCase(req: RouteRequest, deps: RouteDeps): Promise<Rou
   if (v.data.candidates.includes(UNSURE)) return fallbackResponse(deps, t, "unsure");
   const pageIds = [...new Set(v.data.candidates)];
 
-  const question = v.data.next_question_id
-    ? allQuestions(deps.catalog).find((q) => q.id === v.data.next_question_id) ?? null
-    : null;
+  // The model names pages; the catalogue supplies the next question (first unanswered red-flag question of the top page).
+  const answered = new Set((req.answers ?? []).map((a) => a.question_id));
+  const topPage = deps.catalog.pages.find((p) => p.id === pageIds[0]);
+  const question = topPage?.red_flag_questions.find((q) => !answered.has(q.id)) ?? null;
   return {
     candidates: pageIds.map((page_id, i) => ({ page_id, rank: i + 1 })),
     next_question: question ? { id: question.id, text: question.text } : null,

@@ -19,13 +19,13 @@ test("buildPrompt carries age band and prior answers as facts outside the fence"
   assert.match(user, /stroke_q1: yes/);
 });
 
-test("buildOutputSchema enumerates page ids without 'holding' and all question ids", () => {
+test("buildOutputSchema enumerates page ids without 'holding' and asks for no question id", () => {
   const s = buildOutputSchema(catalog) as any;
   assert.deepEqual(s.properties.candidates.items.enum.sort(), ["anaphylaxis", "choking", "collapse_cpr", "seizure", "severe_bleeding", "stroke", "unsure"]);
   assert.equal(s.properties.candidates.minItems, 1);
-  assert.equal(s.properties.candidates.maxItems, 3);
-  assert.equal(s.properties.next_question_id.anyOf[0].enum.length, 12);
-  assert.deepEqual(s.required.sort(), ["candidates", "confidence", "next_question_id"]);
+  assert.equal(s.properties.candidates.maxItems, 2);
+  assert.equal(s.properties.next_question_id, undefined, "the model does not pick questions; the catalogue does");
+  assert.deepEqual(s.required.sort(), ["candidates", "confidence"]);
   assert.equal(s.additionalProperties, false);
 });
 

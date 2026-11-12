@@ -1,0 +1,17 @@
+backend,model,case,run,ttft_ms,total_ms,tokens_per_s,top1,fallback,correct
+qvac,medpsy-4b,c1,1,27586.192892,41522,2.538492355764317,collapse_cpr,false,true
+qvac,medpsy-4b,c1,2,28033.493177,41673,2.6006544688743745,collapse_cpr,false,true
+qvac,medpsy-4b,c2,1,27079.629862,39918,2.6610963173040085,choking,false,true
+qvac,medpsy-4b,c2,2,26391.447592,39534,2.616591627767219,choking,false,true
+qvac,medpsy-4b,c3,1,30376.798856,47594,2.216345486382662,severe_bleeding,false,true
+qvac,medpsy-4b,c3,2,29648.50341,44522,2.5771766307112514,severe_bleeding,false,true
+qvac,medpsy-4b,c4,1,28122.489289,44892,2.278028850930741,anaphylaxis,false,true
+qvac,medpsy-4b,c4,2,28891.405984,43718,2.5935084641210566,anaphylaxis,false,true
+qvac,medpsy-4b,c5,1,27995.962055,41665,2.574850591837266,seizure,false,true
+qvac,medpsy-4b,c5,2,28081.707204,41641,2.609562792060404,seizure,false,true
+qvac,medpsy-4b,c6,1,28035.266317,40317,2.6187331760254313,stroke,false,true
+qvac,medpsy-4b,c6,2,28157.640528,40521,2.62318919209925,stroke,false,true
+qvac,medpsy-4b,d1,1,27321.09951,38517,2.6113796788694037,(fallback),true,true
+qvac,medpsy-4b,d1,2,27484.084918,38761,2.606388613896216,(fallback),true,true
+qvac,medpsy-4b,d2,1,27788.663455,39267,2.626821055977445,(fallback),true,true
+qvac,medpsy-4b,d2,2,27599.414484,39153,2.623635958088074,(fallback),true,true
