@@ -80,3 +80,7 @@ archive/v0/node_modules/
 archive/v0/.models/
 service/node_modules/
 service/.models/
+
+# Local research output (deep-research runs); not published
+reports/
+research_notes/
