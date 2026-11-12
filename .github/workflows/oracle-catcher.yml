@@ -1,0 +1,56 @@
+name: oracle-catcher
+# Asks Oracle for the Triage-0 Ampere A1 instance every 15 minutes until capacity appears.
+# The key in secrets can only manage instances inside the empty triage0-catcher compartment.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+concurrency:
+  group: oracle-catcher
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install OCI CLI
+        run: pip install --quiet oci-cli
+      - name: Configure OCI identity
+        env:
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.oci && chmod 700 ~/.oci
+          printf '%s\n' "$OCI_PRIVATE_KEY" > ~/.oci/key.pem && chmod 600 ~/.oci/key.pem
+          cat > ~/.oci/config <<CFG
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          key_file=/home/runner/.oci/key.pem
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=ca-toronto-1
+          CFG
+          chmod 600 ~/.oci/config
+      - name: One launch attempt
+        id: launch
+        env:
+          OCI_COMPARTMENT_OCID: ${{ secrets.OCI_COMPARTMENT_OCID }}
+          OCI_SUBNET_OCID: ${{ secrets.OCI_SUBNET_OCID }}
+          OCI_NSG_OCID: ${{ secrets.OCI_NSG_OCID }}
+          OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
+          OCPUS: ${{ vars.OCPUS || '1' }}
+          MEM_GB: ${{ vars.MEM_GB || '6' }}
+        run: bash .github/scripts/oci-launch-once.sh
+      - name: Tell Dami
+        if: steps.launch.outputs.LAUNCHED == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Oracle A1 instance launched" --body "The catcher workflow launched triage0-inference. Disable this workflow and run the Stage 0 deploy."
