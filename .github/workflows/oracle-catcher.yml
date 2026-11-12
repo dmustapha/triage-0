@@ -11,10 +11,11 @@ concurrency:
 permissions:
   contents: read
   issues: write
+  actions: write
 jobs:
   launch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,3 +55,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh issue create --repo "$GITHUB_REPOSITORY" --title "Oracle A1 instance launched" --body "The catcher workflow launched triage0-inference. Disable this workflow and run the Stage 0 deploy."
+      - name: Queue the next attempt
+        # GitHub's cron proved unreliable (0 scheduled runs in 3 h). The run re-dispatches itself after a
+        # pause; the chain ends when the instance exists. Disable the workflow to stop it.
+        if: steps.launch.outputs.LAUNCHED != '1' && steps.launch.outputs.EXISTS != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 840
+          gh workflow run oracle-catcher --repo "$GITHUB_REPOSITORY" --ref main
