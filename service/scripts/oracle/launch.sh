@@ -75,6 +75,7 @@ for ((i = 1; i <= MAX_TRIES; i++)); do
     # Transient network / service error: not a verdict on capacity. Short wait, same attempt budget.
     log "transient error (network/service); sleeping ${SLEEP_NET_S:-120}s"; printf '%s\n' "$out" | grep -m1 '"message"' >&2 || true
     sleep "${SLEEP_NET_S:-120}"
+    i=$((i - 1))   # a network blip is not an attempt; do not spend the budget on it
     continue
   fi
   log "launch failed:"; printf '%s\n' "$out" >&2
