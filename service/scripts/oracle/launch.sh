@@ -3,10 +3,10 @@
 # "Out of host capacity" (600 s) and 429 TooManyRequests (180 s), up to 36 times. Never touches coldspot-web or leash-rescue.
 set -euo pipefail
 
-C="ocid1.tenancy.oc1..aaaaaaaaoycde4gwm3c6qduk5n4xx5wz2i2qiiupg5yioxr7st2sly4a3jbq"
+C="${COMPARTMENT:-ocid1.compartment.oc1..aaaaaaaavz5bytndqzcbof7a5kltsolmg5dbmtue5xzkiil3ihjxcahzaueq}"  # triage0-catcher compartment (own VCN; scoped key)
 AD="ABHv:CA-TORONTO-1-AD-1"
-VCN="ocid1.vcn.oc1.ca-toronto-1.amaaaaaavfi4whqaxhlw43qfghtgsdynx7ldtg6rgscckbrtva5oncfoa32q"
-PUBLIC_SUBNET="ocid1.subnet.oc1.ca-toronto-1.aaaaaaaam7mh65a7drvmf2oi3z5l45ejzvpsxrjdbyllpdtkytyymfjlsnia"
+VCN="${VCN:-ocid1.vcn.oc1.ca-toronto-1.amaaaaaavfi4whqaeahffkvgicfgfzcwlgrlijwgsbsuefpkzkssftybvcgq}"
+PUBLIC_SUBNET="${SUBNET:-ocid1.subnet.oc1.ca-toronto-1.aaaaaaaa2kwd3f3bqosy5ygbojekfduoixracjxz4e47uy7h7qlxxpai475q}"
 IMAGE="ocid1.image.oc1.ca-toronto-1.aaaaaaaatrshr4z7fif4wr72yo3gbmq4ftblwrgkwrp76geijzdauhldqkva"
 NAME="triage0-inference"
 OCPUS="${OCPUS:-2}"

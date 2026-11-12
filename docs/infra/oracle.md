@@ -8,11 +8,12 @@
 | Tenancy / compartment | `ocid1.tenancy.oc1..aaaaaaaaoycde4gwm3c6qduk5n4xx5wz2i2qiiupg5yioxr7st2sly4a3jbq` |
 | Region / AD | ca-toronto-1 / `ABHv:CA-TORONTO-1-AD-1` (only AD) |
 | A1 limit | 2 OCPU / 12 GB (Free Tier; PAYG upgrade raises to 4 / 24) |
-| VCN | `ocid1.vcn.oc1.ca-toronto-1.amaaaaaavfi4whqaxhlw43qfghtgsdynx7ldtg6rgscckbrtva5oncfoa32q` (10.0.0.0/16) |
-| Public subnet | `ocid1.subnet.oc1.ca-toronto-1.aaaaaaaam7mh65a7drvmf2oi3z5l45ejzvpsxrjdbyllpdtkytyymfjlsnia` (10.0.0.0/24) |
+| Compartment | `triage0-catcher` `ocid1.compartment.oc1..aaaaaaaavz5bytndqzcbof7a5kltsolmg5dbmtue5xzkiil3ihjxcahzaueq` (everything Triage-0 lives here; the catcher key cannot see anything else) |
+| VCN | `triage0-vcn` `ocid1.vcn.oc1.ca-toronto-1.amaaaaaavfi4whqaeahffkvgicfgfzcwlgrlijwgsbsuefpkzkssftybvcgq` (10.1.0.0/16, own IGW; the old shared VCN is no longer used) |
+| Public subnet | `triage0-public` `ocid1.subnet.oc1.ca-toronto-1.aaaaaaaa2kwd3f3bqosy5ygbojekfduoixracjxz4e47uy7h7qlxxpai475q` (10.1.0.0/24) |
 | Image | Canonical Ubuntu 24.04 aarch64, `ocid1.image.oc1.ca-toronto-1.aaaaaaaatrshr4z7fif4wr72yo3gbmq4ftblwrgkwrp76geijzdauhldqkva` |
 | SSH key | `~/.ssh/triage0_oci` (ed25519, created 2026-11-10, never committed) |
-| NSG | `triage0-nsg`: ingress TCP 22/80/443 from anywhere, egress all. OCID: _filled by launch_ |
+| NSG | `triage0-nsg` `ocid1.networksecuritygroup.oc1.ca-toronto-1.aaaaaaaa4wkw7tlxtu3pzrtzyueq6a7jz5ozyhxbtoucus2736y2fn3hlflq`: ingress TCP 22/80/443, egress all |
 | Instance | `triage0-inference`, `VM.Standard.A1.Flex` 2/12, 50 GB boot. OCID / IP: _filled by launch_ |
 | Hostname | `<ip-with-dashes>.sslip.io` via Caddy until the real domain (Task 9) |
 
@@ -39,3 +40,9 @@ cloud-init builds llama.cpp from source, so READY takes 15 to 25 minutes.
 
 ## Cost guard
 Everything here sits inside Always Free. Set a budget alert at $1 on the tenancy (Billing → Budgets) so any accidental paid resource pings before it grows.
+
+## Scoped identity and the GitHub Actions catcher (2026-11-12)
+- IAM user `triage0-catcher` (API key only, fingerprint `05:a4:…:02:d7`, private key at `~/.oci/triage0-catcher/key.pem` on the Mac and in repo secret `OCI_PRIVATE_KEY`), group `triage0-catcher-group`, policy `triage0-catcher-policy`: `manage instance-family` + `use virtual-network-family` in compartment `triage0-catcher` only. Verified: it cannot list the root compartment or the other two instances.
+- `.github/workflows/oracle-catcher.yml` runs `.github/scripts/oci-launch-once.sh` every 15 min on main. On success it opens a GitHub issue "Oracle A1 instance launched". Shape via repo variables `OCPUS` / `MEM_GB`.
+- When the instance exists: disable the workflow (Actions → oracle-catcher → Disable), run `service/scripts/oracle/deploy.sh <ip>`, then delete the API key: `oci iam user api-key delete --user-id <user> --fingerprint <fp>`.
+- CLI profile `catcher` in `~/.oci/config` uses the same key for local checks.
