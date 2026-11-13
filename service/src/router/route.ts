@@ -1,4 +1,4 @@
-import type { RouteRequest, RouteResponse } from "../contract.js";
+import { FALLBACK_REASONS, type RouteRequest, type RouteResponse } from "../contract.js";
 import type { Catalog } from "../catalog.js";
 import type { RouteBackend } from "../backends/types.js";
 import { buildPrompt } from "./prompt.js";
@@ -12,10 +12,15 @@ export type RouteDeps = { backend: RouteBackend; catalog: Catalog; timeoutMs: nu
 
 type Timing = RouteResponse["timing"];
 
-function fallbackResponse(deps: RouteDeps, timing: Timing, reason: string): RouteResponse {
-  log.warn("route_fallback", { route: reason, backend: deps.backend.name, model: deps.backend.model });
+type FallbackReason = (typeof FALLBACK_REASONS)[number];
+const ERROR_NAME_TO_REASON: Record<string, FallbackReason> = {
+  InferenceTimeoutError: "timeout", QueueFullError: "queue_full",
+};
+
+function fallbackResponse(deps: RouteDeps, timing: Timing, reason: FallbackReason, detail: string = reason): RouteResponse {
+  log.warn("route_fallback", { route: detail.slice(0, 64), backend: deps.backend.name, model: deps.backend.model });
   return {
-    candidates: [], next_question: null, confidence: "low", fallback: true,
+    candidates: [], next_question: null, confidence: "low", fallback: true, fallback_reason: reason,
     timing, backend: deps.backend.name, model: deps.backend.model,
   };
 }
@@ -34,7 +39,8 @@ export async function routeCase(req: RouteRequest, deps: RouteDeps): Promise<Rou
       deps.timeoutMs,
     );
   } catch (err) {
-    return fallbackResponse(deps, timing(), (err as Error).name || "backend_error");
+    const name = err instanceof Error ? err.name : "backend_error";
+    return fallbackResponse(deps, timing(), ERROR_NAME_TO_REASON[name] ?? "backend_error", name);
   }
   const t: Timing = { ttft_ms: raw.ttftMs, total_ms: raw.totalMs, tokens_per_s: raw.tokensPerS };
 

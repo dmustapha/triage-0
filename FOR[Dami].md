@@ -25,16 +25,16 @@ npm run spike:qvac --workspace service                                  # downlo
 A fresh reviewer read the service before anything touched Oracle. The one critical find: when a model stalls and our 20 s timer fires, we released the lock but never told the SDK to stop, so the next person's request would have queued behind a ghost. Fixed by cancelling the run by its request id. Also fixed: the timer now starts when you join the queue, not when your turn comes; the `answers` field is bounded so it cannot carry smuggled instructions past the fence; odd client errors keep their 4xx status instead of becoming "something went wrong".
 
 ## What Stage 0 proved (2026-11-12, provisional on Ampere)
-Measured on a free 2-core x86 cloud machine, same core count as the Oracle target:
+Measured on a free 2-core x86 cloud machine, same core count as the Oracle target. "First-sight" = the first time the model sees a sentence; repeat runs replay a cache and flatter the number (the final review caught this):
 
 | | MedPsy-4B | MedPsy-1.7B |
 |---|---|---|
-| p50 per route call, llama-server, final output shape | **4.9 s** | 6.3 s (older shape) |
+| first-sight p50 per route call, llama-server, final output shape | **6.1 s** (budget 6 s) | 6.9 s (older shape) |
 | p50 via the QVAC SDK (no prompt cache) | 38 s | 16 s |
 | top-1 hit rate on 8 bench cases (6 emergencies + 2 decoys) | **8/8** | 5/8 |
 | resident memory | 4.7 GB | 2.2 GB |
 
-Decision in one sentence: **MedPsy-4B, served by llama.cpp with the fixed prompt cached, answering only with page ids and a confidence word, on free CPU**, provisional until the same benchmark runs on the Ampere box (expected a third slower; three levers left before anything paid).
+Decision in one sentence: **MedPsy-4B, served by llama.cpp with the fixed prompt cached, answering only with page ids and a confidence word, on free CPU**, provisional: the 6 s budget is a borderline miss on x86 and not yet measured on Ampere; three levers remain (shorter prompt, ARM-tuned quant, threads) before anything paid.
 
 Why the SDK lost on CPU: it re-reads the 490-token fixed prompt every call; llama-server keeps it. The SDK stays as the fallback behind the same contract.
 

@@ -10,7 +10,7 @@ SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "ubuntu@$IP")
 echo "host: https://$HOST  backend=$BACKEND model=$MODEL" >&2
 "${SSH[@]}" 'sudo mkdir -p /opt/triage0/service /opt/triage0/models && sudo chown -R ubuntu:ubuntu /opt/triage0'
 rsync -az --delete -e "ssh -i $KEY" \
-  --exclude node_modules --exclude .models --exclude tests --exclude bench \
+  --exclude node_modules --exclude .models --exclude tests --exclude 'bench/results-*' \
   "$SVC/" "ubuntu@$IP:/opt/triage0/service/"
 rsync -az -e "ssh -i $KEY" "$SVC/../package.json" "ubuntu@$IP:/opt/triage0/package.json"
 

@@ -4,6 +4,8 @@ export const AGE_BANDS = ["baby", "child", "adult", "pregnant", "older_adult"] a
 export const CONFIDENCE = ["high", "medium", "low"] as const;
 export const BACKENDS = ["qvac", "llamacpp"] as const;
 export const MODELS = ["medpsy-4b", "medpsy-1.7b"] as const;
+/** Why a response fell back to the holding page. Diagnostic only; never carries case text. */
+export const FALLBACK_REASONS = ["unsure", "low_confidence", "parse_error", "schema_invalid", "timeout", "queue_full", "backend_error"] as const;
 
 export const RouteRequestSchema = z.object({
   text: z
@@ -25,6 +27,7 @@ export const RouteResponseSchema = z.object({
   next_question: z.object({ id: z.string(), text: z.string() }).nullable(),
   confidence: z.enum(CONFIDENCE),
   fallback: z.boolean(),
+  fallback_reason: z.enum(FALLBACK_REASONS).optional(),
   timing: z.object({
     ttft_ms: z.number().nullable(),
     total_ms: z.number(),

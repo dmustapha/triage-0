@@ -14,7 +14,7 @@
 | Image | Canonical Ubuntu 24.04 aarch64, `ocid1.image.oc1.ca-toronto-1.aaaaaaaatrshr4z7fif4wr72yo3gbmq4ftblwrgkwrp76geijzdauhldqkva` |
 | SSH key | `~/.ssh/triage0_oci` (ed25519, created 2026-11-10, never committed) |
 | NSG | `triage0-nsg` `ocid1.networksecuritygroup.oc1.ca-toronto-1.aaaaaaaa4wkw7tlxtu3pzrtzyueq6a7jz5ozyhxbtoucus2736y2fn3hlflq`: ingress TCP 22/80/443, egress all |
-| Instance | `triage0-inference`, `VM.Standard.A1.Flex` 2/12, 50 GB boot. OCID / IP: _filled by launch_ |
+| Instance | `triage0-inference`, `VM.Standard.A1.Flex`; the catcher asks for **1 OCPU / 6 GB** (lands more easily); **resize in place to 2 / 12 before benchmarking** (`oci compute instance update --instance-id <id> --shape-config '{"ocpus":2,"memoryInGBs":12}'` + reboot). 50 GB boot. OCID / IP: _filled by launch_ |
 | Hostname | `<ip-with-dashes>.sslip.io` via Caddy until the real domain (Task 9) |
 
 ## Launch

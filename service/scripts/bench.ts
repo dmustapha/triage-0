@@ -12,11 +12,12 @@ import { createInferenceLock } from "../src/router/lock.js";
 import { createQvacBackend } from "../src/backends/qvac.js";
 import { createLlamaCppBackend } from "../src/backends/llamacpp.js";
 import type { ModelName, RouteBackend } from "../src/backends/types.js";
+import { summarize, parseOutDir, markdownRow, type BenchRow } from "../src/bench/summarize.js";
 
-type Case = { id: string; text: string; expect: string | null };
-type Row = { backend: string; model: string; case: string; run: number; ttft_ms: number | null; total_ms: number; tokens_per_s: number | null; top1: string; fallback: boolean; correct: boolean };
+type Case = { id: string; text: string; expect: string | null; heldout?: boolean };
+type Row = BenchRow;
 
-const outDir = process.argv[process.argv.indexOf("--out") + 1] || "bench/";
+const outDir = parseOutDir(process.argv);
 const runs = Number(process.env.BENCH_RUNS ?? 3);
 const combos = (process.env.BENCH_COMBOS ?? "qvac:medpsy-4b").split(",").map((c) => c.split(":") as [string, ModelName]);
 const cases: Case[] = JSON.parse(readFileSync(new URL("../bench/cases.json", import.meta.url), "utf8"));
@@ -24,10 +25,6 @@ const catalog = loadCatalog(STAGE0_PATH);
 const lock = createInferenceLock();
 const rows: Row[] = [];
 
-function pct(xs: number[], p: number): number {
-  const s = [...xs].sort((a, b) => a - b);
-  return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))] ?? 0;
-}
 function rssMb(pattern: string): string {
   try { return execSync(`ps -C ${pattern} -o rss= | awk '{s+=$1} END {printf "%d", s/1024}'`).toString().trim() || "n/a"; } catch { return "n/a"; }
 }
@@ -39,8 +36,9 @@ async function runCombo(backend: RouteBackend): Promise<void> {
     for (let run = 1; run <= runs; run++) {
       const r = await routeCase({ text: c.text }, { backend, catalog, timeoutMs: 60_000, lock });
       const top1 = r.candidates[0]?.page_id ?? "(fallback)";
-      const correct = c.expect === null ? r.fallback : top1 === c.expect && !r.fallback;
-      rows.push({ backend: backend.name, model: backend.model, case: c.id, run, ttft_ms: r.timing.ttft_ms, total_ms: r.timing.total_ms, tokens_per_s: r.timing.tokens_per_s, top1, fallback: r.fallback, correct });
+      // A decoy counts only when the model itself said "unsure"; a timeout or parse error is not a hit.
+      const correct = c.expect === null ? r.fallback && r.fallback_reason === "unsure" : top1 === c.expect && !r.fallback;
+      rows.push({ backend: backend.name, model: backend.model, case: c.id, run, ttft_ms: r.timing.ttft_ms, total_ms: r.timing.total_ms, tokens_per_s: r.timing.tokens_per_s, top1, fallback: r.fallback, reason: r.fallback_reason ?? null, correct, heldout: c.heldout === true });
       process.stderr.write(`${backend.name}/${backend.model} ${c.id} r${run}: ${r.timing.total_ms} ms top1=${top1} ok=${correct}\n`);
     }
   }
@@ -58,17 +56,10 @@ for (const [name, model] of combos) {
 
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const csv = ["backend,model,case,run,ttft_ms,total_ms,tokens_per_s,top1,fallback,correct", ...rows.map((r) => Object.values(r).join(","))].join("\n");
+const csv = ["backend,model,case,run,ttft_ms,total_ms,tokens_per_s,top1,fallback,reason,correct,heldout", ...rows.map((r) => [r.backend, r.model, r.case, r.run, r.ttft_ms, r.total_ms, r.tokens_per_s, r.top1, r.fallback, r.reason, r.correct, r.heldout].join(","))].join("\n");
 writeFileSync(`${outDir}/results-${stamp}.csv`, csv);
 
-console.log("| backend | model | p50 total ms | p95 total ms | p50 ttft ms | tok/s (median) | top-1 hit rate |");
-console.log("|---|---|---|---|---|---|---|");
-for (const [name, model] of combos) {
-  const rs = rows.filter((r) => r.backend === name && r.model === model);
-  const totals = rs.map((r) => r.total_ms);
-  const ttfts = rs.map((r) => r.ttft_ms).filter((x): x is number => x !== null);
-  const tps = rs.map((r) => r.tokens_per_s).filter((x): x is number => x !== null);
-  const perCase = cases.map((c) => rs.filter((r) => r.case === c.id).every((r) => r.correct));
-  console.log(`| ${name} | ${model} | ${pct(totals, 50)} | ${pct(totals, 95)} | ${ttfts.length ? pct(ttfts, 50) : "n/a"} | ${tps.length ? pct(tps, 50).toFixed(1) : "n/a"} | ${perCase.filter(Boolean).length}/${cases.length} |`);
-}
+console.log("| backend | model | first-sight p50 ms | first-sight p95 ms | warm-repeat p50 ms | tok/s (median) | top-1 tuned | top-1 held-out |");
+console.log("|---|---|---|---|---|---|---|---|");
+for (const [name, model] of combos) console.log(markdownRow(name, model, summarize(rows, name, model)));
 process.exit(0);
