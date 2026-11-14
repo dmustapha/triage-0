@@ -37,8 +37,8 @@ jobs:
         id: llama-cache
         uses: actions/cache@v4
         with:
-          path: llama.cpp/build/bin/llama-server
-          key: llama-server-arm64-${{ runner.os }}-v1
+          path: llama.cpp/build/bin
+          key: llama-server-arm64-${{ runner.os }}-v2
       - name: Build llama-server (same flags as cloud-init)
         if: steps.llama-cache.outputs.cache-hit != 'true'
         run: |
