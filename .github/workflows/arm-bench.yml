@@ -10,6 +10,9 @@ on:
       runs:
         description: "Runs per case (run 1 = first-sight)"
         default: "3"
+      threads:
+        description: "llama-server threads (empty = nproc; 2 stands in for the 2-OCPU A1 box)"
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -58,9 +61,11 @@ jobs:
       - name: Install service deps
         run: npm ci --workspace service --include-workspace-root --no-audit --no-fund
       - name: Start llama-server (same flags as the unit)
+        env:
+          THREADS: ${{ inputs.threads }}
         run: |
           nohup llama.cpp/build/bin/llama-server -m "models/medpsy-4b-${{ matrix.quant }}.gguf" \
-            --host 127.0.0.1 --port 8081 -c 2048 -t "$(nproc)" --jinja --reasoning-budget 0 \
+            --host 127.0.0.1 --port 8081 -c 2048 -t "${THREADS:-$(nproc)}" --jinja --reasoning-budget 0 \
             > llama-server.log 2>&1 &
           for i in $(seq 1 120); do
             curl -sf http://127.0.0.1:8081/health >/dev/null && exit 0; sleep 2
@@ -98,11 +103,11 @@ jobs:
           console.log(`| case | first-sight ms | top1 | ok |\n|---|---|---|---|`);
           for (const r of first) console.log(`| ${r.case}${r.heldout === "true" ? " (held-out)" : ""} | ${r.total_ms} | ${r.top1} | ${r.correct} |`);
           JS
-          node "$RUNNER_TEMP/first-sight.mjs" bench-out "${{ matrix.quant }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          node "$RUNNER_TEMP/first-sight.mjs" bench-out "${{ matrix.quant }} t=${{ inputs.threads || 'nproc' }}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: arm-bench-${{ matrix.quant }}
+          name: arm-bench-${{ matrix.quant }}-t${{ inputs.threads || 'all' }}
           path: |
             bench-out/
             bench.log
