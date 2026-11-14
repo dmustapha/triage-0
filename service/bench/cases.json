@@ -1,0 +1,84 @@
+[
+  {
+    "id": "c1",
+    "text": "my dad just fell on the floor and hes not breathing i dont know what to do",
+    "expect": "collapse_cpr"
+  },
+  {
+    "id": "c2",
+    "text": "she is coughing and cannot speak, holding her neck",
+    "expect": "choking"
+  },
+  {
+    "id": "c3",
+    "text": "he cut his leg with the machete and blood is pouring out it wont stop",
+    "expect": "severe_bleeding"
+  },
+  {
+    "id": "c4",
+    "text": "my son ate peanuts and now his lips are swelling and he is wheezing",
+    "expect": "anaphylaxis"
+  },
+  {
+    "id": "c5",
+    "text": "my sister is shaking all over on the ground and her eyes rolled back",
+    "expect": "seizure"
+  },
+  {
+    "id": "c6",
+    "text": "grandma's face is drooping on one side and her words are slurred, it started suddenly",
+    "expect": "stroke"
+  },
+  {
+    "id": "d1",
+    "text": "my wifi is slow",
+    "expect": null
+  },
+  {
+    "id": "d2",
+    "text": "what is the capital of France",
+    "expect": null
+  },
+  {
+    "id": "h1",
+    "text": "my brother suddenly cant lift his arm and his mouth is twisted when he talks",
+    "expect": "stroke",
+    "heldout": true
+  },
+  {
+    "id": "h2",
+    "text": "a man at the bus stop just dropped, people are shouting, i cant see his chest moving",
+    "expect": "collapse_cpr",
+    "heldout": true
+  },
+  {
+    "id": "h3",
+    "text": "she got stung and now her whole face is puffy and she sounds wheezy",
+    "expect": "anaphylaxis",
+    "heldout": true
+  },
+  {
+    "id": "hd1",
+    "text": "how do i reset my password",
+    "expect": null,
+    "heldout": true
+  },
+  {
+    "id": "hd2",
+    "text": "what time does the pharmacy close",
+    "expect": null,
+    "heldout": true
+  },
+  {
+    "id": "hd3",
+    "text": "my knee hurts a bit after football",
+    "expect": null,
+    "heldout": true
+  },
+  {
+    "id": "hd4",
+    "text": "write me a poem about rain",
+    "expect": null,
+    "heldout": true
+  }
+]

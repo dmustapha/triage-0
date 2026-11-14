@@ -1,0 +1,138 @@
+{
+  "version": "stage0",
+  "holding_page_id": "holding",
+  "pages": [
+    {
+      "id": "collapse_cpr",
+      "title_plain": "Someone has collapsed and is not breathing normally",
+      "cues": [
+        "collapsed",
+        "not breathing",
+        "no pulse",
+        "unresponsive",
+        "gasping"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "collapse_cpr_q1",
+          "text": "[STAGE-0 STUB, unsigned] collapse_cpr question 1"
+        },
+        {
+          "id": "collapse_cpr_q2",
+          "text": "[STAGE-0 STUB, unsigned] collapse_cpr question 2"
+        }
+      ]
+    },
+    {
+      "id": "choking",
+      "title_plain": "Someone is choking",
+      "cues": [
+        "cannot speak",
+        "cannot breathe",
+        "clutching throat",
+        "coughing hard",
+        "something stuck"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "choking_q1",
+          "text": "[STAGE-0 STUB, unsigned] choking question 1"
+        },
+        {
+          "id": "choking_q2",
+          "text": "[STAGE-0 STUB, unsigned] choking question 2"
+        }
+      ]
+    },
+    {
+      "id": "severe_bleeding",
+      "title_plain": "Heavy bleeding that will not stop",
+      "cues": [
+        "blood soaking through",
+        "spurting",
+        "deep cut",
+        "will not stop bleeding"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "severe_bleeding_q1",
+          "text": "[STAGE-0 STUB, unsigned] severe_bleeding question 1"
+        },
+        {
+          "id": "severe_bleeding_q2",
+          "text": "[STAGE-0 STUB, unsigned] severe_bleeding question 2"
+        }
+      ]
+    },
+    {
+      "id": "anaphylaxis",
+      "title_plain": "A severe allergic reaction",
+      "cues": [
+        "swelling lips",
+        "hives",
+        "wheezing after eating",
+        "bee sting",
+        "peanuts",
+        "throat closing"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "anaphylaxis_q1",
+          "text": "[STAGE-0 STUB, unsigned] anaphylaxis question 1"
+        },
+        {
+          "id": "anaphylaxis_q2",
+          "text": "[STAGE-0 STUB, unsigned] anaphylaxis question 2"
+        }
+      ]
+    },
+    {
+      "id": "seizure",
+      "title_plain": "Someone is having a seizure",
+      "cues": [
+        "shaking all over",
+        "jerking",
+        "foaming",
+        "eyes rolled back",
+        "fitting"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "seizure_q1",
+          "text": "[STAGE-0 STUB, unsigned] seizure question 1"
+        },
+        {
+          "id": "seizure_q2",
+          "text": "[STAGE-0 STUB, unsigned] seizure question 2"
+        }
+      ]
+    },
+    {
+      "id": "stroke",
+      "title_plain": "Signs of a stroke",
+      "cues": [
+        "face drooping",
+        "arm weak",
+        "slurred speech",
+        "sudden confusion",
+        "one side"
+      ],
+      "red_flag_questions": [
+        {
+          "id": "stroke_q1",
+          "text": "[STAGE-0 STUB, unsigned] stroke question 1"
+        },
+        {
+          "id": "stroke_q2",
+          "text": "[STAGE-0 STUB, unsigned] stroke question 2"
+        }
+      ]
+    },
+    {
+      "id": "holding",
+      "title_plain": "We're not sure yet. Call for help now.",
+      "cues": [],
+      "red_flag_questions": []
+    }
+  ]
+}

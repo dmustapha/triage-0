@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triage-0 test</title>
+<style>
+  :root { --ink:#1b1b1b; --muted:#6b6b6b; --line:#d9d9d9; --accent:#b3261e; --bg:#fffdf8; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:28px; margin:8px 0 16px; }
+  textarea { width:100%; min-height:120px; font:inherit; padding:12px; border:2px solid var(--line); border-radius:10px; resize:vertical; }
+  button { margin-top:12px; width:100%; min-height:48px; font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:10px; }
+  button[disabled] { opacity:.6 }
+  #out { margin-top:24px }
+  .card { border:2px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .card.first { border-color:var(--accent) }
+  .rank { color:var(--muted); font-size:15px }
+  .holding { border-color:var(--accent); background:#fff3f1 }
+  .q { margin-top:12px; padding:12px 16px; border-left:4px solid var(--ink); }
+  .timing { color:var(--muted); font-size:15px; margin-top:12px }
+  .note { color:var(--muted); font-size:15px; margin-top:28px }
+</style>
+</head>
+<body>
+<main>
+  <h1>What's happening?</h1>
+  <label for="t" class="rank">Tell us in your own words.</label>
+  <textarea id="t" autocomplete="off" autocapitalize="sentences" placeholder="e.g. he fell down and is not answering me"></textarea>
+  <button id="go">Tell us</button>
+  <div id="out" aria-live="polite"></div>
+  <p class="note">Stage 0 test page. Not for real emergencies yet. If someone is in danger, call for an ambulance now.</p>
+</main>
+<script>
+const TITLES = {
+  collapse_cpr: "Someone has collapsed and is not breathing normally",
+  choking: "Someone is choking",
+  severe_bleeding: "Heavy bleeding that will not stop",
+  anaphylaxis: "A severe allergic reaction",
+  seizure: "Someone is having a seizure",
+  stroke: "Signs of a stroke"
+};
+const HOLDING = "We're not sure yet. Call for an ambulance now. Keep them still and warm, and watch their breathing.";
+const out = document.getElementById("out"), t = document.getElementById("t"), go = document.getElementById("go");
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+
+async function ask() {
+  const text = t.value.trim();
+  if (!text) { t.focus(); return; }
+  go.disabled = true; out.replaceChildren(el("p", "rank", "One moment…"));
+  const t0 = performance.now();
+  try {
+    const r = await fetch("/route", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+    const body = await r.json();
+    render(body, r.status, (performance.now() - t0) / 1000);
+  } catch (e) {
+    render({ fallback: true }, 0, (performance.now() - t0) / 1000);
+  } finally { go.disabled = false; }
+}
+
+function render(b, status, secs) {
+  out.replaceChildren();
+  if (status !== 200 || b.fallback) {
+    out.append(el("div", "card holding", b.error || HOLDING));
+  } else {
+    b.candidates.forEach((c, i) => {
+      const card = el("div", "card" + (i === 0 ? " first" : ""));
+      card.append(el("div", "rank", i === 0 ? "Most likely" : "Also possible"), el("div", "", TITLES[c.page_id] || c.page_id));
+      out.append(card);
+    });
+    if (b.next_question) out.append(el("div", "q", b.next_question.text));
+  }
+  out.append(el("div", "timing", `answered in ${secs.toFixed(1)} s`));
+}
+go.addEventListener("click", ask);
+</script>
+</body>
+</html>

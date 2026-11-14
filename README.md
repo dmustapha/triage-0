@@ -1,5 +1,7 @@
 # Triage-0: Offline, WHO-grounded clinical decision support
 
+> **v1 in progress.** Triage-0 is being rebuilt as an emergency first-response guide. The hackathon version lives in `archive/v0/` (tag `v0.2.0-hackathon`). Design: `docs/superpowers/specs/2026-11-09-triage-0-v1-production-design.md`. Roadmap: `docs/ROADMAP.md`.
+
 Triage-0 is a clinical triage assistant for community health workers that runs entirely on the device. A worker describes a case by voice or text, and Triage-0 returns a severity card and a full WHO management plan, citing the exact guideline page it used. Every model (speech-to-text, reasoning, embeddings, speech) runs locally through the QVAC SDK, so the patient's case never leaves the machine and the tool works with the network off.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)

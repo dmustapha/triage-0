@@ -1,0 +1,53 @@
+#cloud-config
+# triage0-inference: Ubuntu 24.04 aarch64, Oracle Ampere A1.
+package_update: true
+package_upgrade: false
+packages:
+  - ufw
+  - build-essential
+  - cmake
+  - git
+  - curl
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+
+users:
+  - default
+  - name: triage0
+    system: true
+    shell: /usr/sbin/nologin
+    home: /opt/triage0
+    create_home: false
+
+write_files:
+  - path: /etc/caddy/Caddyfile
+    permissions: "0644"
+    content: |
+      # placeholder; deploy.sh writes the real site block
+      :80 {
+        respond "triage0 placeholder" 200
+      }
+
+runcmd:
+  # Node 24 (NodeSource)
+  - curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  - apt-get install -y nodejs
+  # Caddy (official apt repo)
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - apt-get install -y caddy
+  # Oracle's Ubuntu image ships an iptables REJECT rule after port 22 (netfilter-persistent); ufw chains sit behind it.
+  - iptables -D INPUT -j REJECT --reject-with icmp-host-prohibited || true
+  - netfilter-persistent save || true
+  # Firewall (Oracle's NSG is the outer wall; ufw is the inner one)
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+  # Service home
+  - mkdir -p /opt/triage0 && chown triage0:triage0 /opt/triage0
+  # llama.cpp (server target only, native ARM flags)
+  # The model is a local file: no curl needed. One chained line so the READY marker only appears after a successful build.
+  - git clone --depth 1 https://github.com/ggml-org/llama.cpp /opt/llama.cpp && cmake -S /opt/llama.cpp -B /opt/llama.cpp/build -DGGML_NATIVE=ON -DLLAMA_CURL=OFF && cmake --build /opt/llama.cpp/build --target llama-server -j"$(nproc)" && touch /var/lib/cloud/triage0-ready

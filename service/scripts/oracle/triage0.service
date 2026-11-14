@@ -1,0 +1,22 @@
+[Unit]
+Description=Triage-0 inference service (routes to authored pages)
+After=network-online.target llama-server.service
+Wants=network-online.target llama-server.service
+
+[Service]
+User=triage0
+Group=triage0
+WorkingDirectory=/opt/triage0/service
+EnvironmentFile=/etc/triage0.env
+Environment=HOME=/opt/triage0
+ExecStart=/usr/bin/npx tsx src/index.ts
+Restart=on-failure
+RestartSec=5
+MemoryMax=80%
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/triage0
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

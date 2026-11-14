@@ -113,11 +113,13 @@ deliberately **not** been decided yet, so a missing item is a known gap, not a f
 
 ## Part B — The stages before the ship gate
 
-### Stage 0 — Foundations spike (days)
-Build: A7.2–A7.4, A3.6, A3.8–A3.9, A5.5, A6.4 (service hardening basics), A6.8.
-Dami: approves content licence.
-**Decision made here, on measured numbers (Dami 2026-11-10):** stay on the free CPU box with 4B, drop to 1.7B, or pay for a GPU shape. Not decided before.
-**Exit test:** a typed sentence from a phone browser returns ranked page ids + one next question from the Oracle box inside the latency budget; fallback proven once.
+### Stage 0 — Foundations spike — DONE 2026-11-12 (provisional on Ampere)
+Built: A7.2–A7.4, A3.6, A3.9, A5.5, A6.4, A6.8. A3.8 (speech via our service) moved to Stage 1. Branch `stage-0`; results in `docs/STAGE-0-RESULTS.md`.
+Dami: content licence approved (CC BY-SA 4.0, 2026-11-10).
+**Decision, on measured numbers (2-core x86 Codespace, 2026-11-12):** stay on free CPU with **MedPsy-4B**, served by **llama-server with prompt caching**, model output = page ids + confidence only (catalogue picks the question). first-sight p50 6.1 s (budget 6 s: borderline miss), p95 7.0 s, 8/8 top-1 in-sample; 7 held-out cases added, not yet run. MedPsy-1.7B rejected (5/8, confident wrong pages). SDK path 38 s → fallback, not primary.
+**Real Oracle quota:** A1 limit is 2 OCPU / 12 GB (Oracle policy since June 2026), home region only; ca-toronto-1 had no A1 capacity for 45+ h. A scoped GitHub Actions catcher keeps asking; the instance lands in compartment `triage0-catcher`.
+**Exit test:** phone-browser test and Ampere re-measure **pending the box**; everything else (contract, fallback, log hygiene, both backends) proven. The latency budget is not yet met on any hardware; levers in order: trim cue lists → Q4_0 quant for ARM → threads = nproc; if Ampere first-sight p50 stays above ~8 s, rule 3 (paid shape) reopens.
+**Spec deviation for Dami:** model no longer emits `next_question_id` (design §3); flagged in STAGE-0-RESULTS.
 
 ### Stage 1 — The engine, empty of medicine (weeks)
 Build: A1 (all), A2 E1–E12, A3.1–A3.5 + A3.7, A5.3 harness, A6.1–A6.4, A7.1, A7.5.
