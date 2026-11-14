@@ -1,0 +1,8 @@
+ts,phase,event,modelId,promptTokens,ttftMs,tokensPerSec,totalTokens,backendDevice,durationMs
+2026-06-20T06:01:14.822Z,egress-check,load,embeddings:c8fb5f8badf52854,,,,,,3011
+2026-06-20T06:01:18.059Z,egress-check,load,medpsy:902cee35bc7ba456,,,,,,3209
+2026-06-20T06:01:19.452Z,triage,search,c8fb5f8badf52854,26,,,,,1327
+2026-06-20T06:01:46.157Z,triage,completion,902cee35bc7ba456,998,1921,32.93,794,gpu,26695
+2026-06-20T06:01:50.078Z,triage,completion,902cee35bc7ba456,847,1578,38.39,67,gpu,3908
+2026-06-20T06:01:50.323Z,egress-check,unload,medpsy:902cee35bc7ba456,,,,,,213
+2026-06-20T06:01:50.484Z,egress-check,unload,embeddings:c8fb5f8badf52854,,,,,,161

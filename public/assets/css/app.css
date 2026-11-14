@@ -1,0 +1,186 @@
+/* app.css - the Triage-0 tool page. Depends on tokens.css + base.css. */
+
+.app-head{ display:flex; align-items:center; justify-content:space-between; padding:20px 0; }
+.app-main{ padding-bottom:var(--s-8); display:grid; gap:18px; }
+
+/* numbered steps */
+.step-label{ display:flex; align-items:center; gap:11px; margin:0 0 14px; }
+.step-num{
+  width:26px; height:26px; border-radius:var(--r-pill); flex:none;
+  background:var(--surf-2); border:1px solid var(--line-2);
+  display:grid; place-items:center; font-size:13px; font-weight:700; color:var(--accent);
+}
+.step-label h2{ font-family:var(--font-display); font-size:20px; font-weight:600; margin:0; }
+.hint{ font-size:14px; color:var(--dim); margin:0 0 14px; }
+
+/* multilingual advert + example chips row */
+.multiling{ font-size:13px; color:var(--dim); margin:12px 0 10px; }
+.multiling b{ color:var(--mut); font-weight:600; }
+.seeds{ display:flex; gap:9px; flex-wrap:wrap; margin-bottom:2px; }
+.seed{ font-family:var(--font-body); font-size:12.5px; color:var(--mut); background:var(--surf-2);
+  border:1px solid var(--line-2); border-radius:var(--r-pill); padding:6px 13px; cursor:pointer;
+  transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.seed:hover{ color:var(--ink); border-color:var(--accent-line); }
+.seed:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+/* case input */
+textarea#case{
+  width:100%; min-height:104px; resize:vertical; font-family:var(--font-body); font-size:18px; line-height:1.55;
+  color:var(--ink); background:#0b0e0f; border:1px solid var(--line-2); border-radius:var(--r); padding:16px 17px;
+}
+textarea#case::placeholder{ color:var(--dim); }
+textarea#case:focus{ outline:2px solid var(--accent); outline-offset:2px; border-color:transparent; }
+
+.actions{ display:flex; gap:11px; align-items:center; flex-wrap:wrap; margin-top:16px; }
+.actions .btn--primary{ font-size:17px; }
+#rec.is-recording{ background:var(--emerg); color:#fff; border-color:var(--emerg); }
+.status{ font-size:13.5px; color:var(--dim); }
+
+/* citation */
+.cite{
+  background:#0b0e0f; border:1px solid var(--line); border-left:3px solid var(--accent);
+  border-radius:0 var(--r) var(--r) 0; padding:15px 17px; margin-bottom:16px;
+  animation:cite-in .35s var(--ease) both;
+}
+@keyframes cite-in{ from{ opacity:0; transform:translateY(5px) } to{ opacity:1; transform:none } }
+.cite .from{ font-size:13px; color:var(--accent); font-weight:600; display:flex; align-items:center; gap:8px; }
+.cite .q{ display:block; margin-top:9px; font-size:16px; line-height:1.55; color:var(--ink); }
+.cite .src{ display:block; margin-top:9px; font-size:13px; color:var(--dim); }
+
+/* reasoning stream */
+.reason{
+  font-size:15px; line-height:1.6; color:var(--mut); background:#0b0e0f; border:1px solid var(--line);
+  border-radius:var(--r); padding:15px 16px; margin-bottom:18px; white-space:pre-wrap;
+  max-height:220px; overflow:auto;
+}
+.reason .lead{ display:flex; align-items:center; gap:9px; color:var(--dim); font-size:13.5px; margin-bottom:9px; }
+
+/* the triage card */
+.verdict{ border:1px solid var(--line-2); border-radius:var(--r); overflow:hidden; margin-bottom:18px; }
+.verdict .sev{
+  font-size:26px; padding:18px 20px; display:flex; align-items:center; gap:14px;
+}
+.verdict .sev.EMERGENCY{ background:var(--emerg); color:#1a0604; }
+.verdict .sev.URGENT{ background:var(--urgent); color:#1a1205; }
+.verdict .sev.ROUTINE{ background:var(--routine); color:var(--accent-ink); }
+.verdict .sev.SELF_CARE{ background:var(--self-care); color:#04121d; }
+.verdict .sev.UNKNOWN{ background:var(--unknown); color:#0c0c0c; }
+.sev-note{ padding:13px 20px; background:var(--surf-2); font-size:15px; color:var(--mut); }
+/* Phase 4: machine-translation notice for FR/ES cases. The WHO citation stays English (shown below). */
+.tr-banner{ margin:0 0 12px; padding:8px 12px; font-size:13px; line-height:1.4; color:var(--accent);
+  background:var(--accent-wash); border:1px solid var(--accent-line); border-radius:6px; }
+/* H-7 empty-store setup banner: a prominent, actionable warning shown only when the RAG store is not
+   ingested (otherwise every case silently abstains). Emergency-tinted so it reads as "fix this first". */
+.setup-banner{ margin:0 0 4px; padding:12px 15px; font-size:14px; line-height:1.5; color:var(--ink);
+  background:var(--emerg-wash, rgba(220,70,70,.10)); border:1px solid var(--emerg); border-radius:var(--r); }
+.setup-banner code{ padding:1px 6px; border-radius:4px; background:var(--surf-2); border:1px solid var(--line-2);
+  font-size:13px; }
+/* H-1 reasoning wait-timer: a muted, tabular elapsed counter next to the reasoning stage label. */
+.rtimer{ color:var(--dim); font-variant-numeric:tabular-nums; }
+
+/* On-device pipeline readout: the reasoning wait becomes a checklist of the REAL steps the server ran
+   (each row is an emitted SSE `stage`). Calm — no loud colour; the single accent marks a completed step
+   and the active spinner. Proves the 6-model on-device pipeline without a decorative dashboard. */
+.pl-steps{ list-style:none; margin:0 0 14px; padding:12px 14px; display:grid; gap:3px;
+  background:#0b0e0f; border:1px solid var(--line); border-radius:var(--r); }
+.pl-step{ display:flex; align-items:center; gap:10px; padding:5px 2px; font-size:13.5px; color:var(--dim);
+  transition:color var(--t-ui) var(--ease); }
+.pl-step .pl-ic{ width:17px; height:17px; flex:none; border-radius:var(--r-pill); box-sizing:border-box;
+  display:grid; place-items:center; border:2px solid var(--line-2); }
+.pl-step.is-active{ color:var(--ink); }
+.pl-step.is-active .pl-ic{ border-color:var(--line-2); border-top-color:var(--accent);
+  animation:pl-spin .7s linear infinite; }
+.pl-step.is-done{ color:var(--mut); }
+.pl-step.is-done .pl-ic{ border:1px solid var(--accent-line); background:var(--accent-wash); color:var(--accent); }
+.pl-step.is-done .pl-ic svg{ width:11px; height:11px; }
+.pl-step .pl-label{ font-weight:500; }
+.pl-step .pl-detail{ margin-left:auto; font-size:11.5px; color:var(--dim);
+  font-variant-numeric:tabular-nums; text-align:right; }
+@keyframes pl-spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){ .pl-step.is-active .pl-ic{ animation:none; } }
+/* H-2 Stop state: the Get-guidance button turns neutral (not the primary CTA colour) while it acts as Stop. */
+.btn.is-stopping{ background:var(--line); color:var(--ink); border-color:var(--line); }
+/* WHO classification — shown before the management plan (what it is, then what to do). */
+.dx{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); }
+.dx-label{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.dx-name{ font-size:20px; font-weight:600; color:var(--ink); }
+/* model self-reported confidence (1D) — neutral by default; high earns the single accent. Never a
+   severity colour: severity stays the only loud signal on the card. */
+.conf{ display:inline-flex; align-items:center; font-size:11.5px; font-weight:600; text-transform:capitalize;
+  padding:3px 10px; border-radius:var(--r-pill); border:1px solid var(--line-2); color:var(--mut);
+  background:var(--surf-2); }
+.conf--high{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-wash); }
+.dx-hint{ margin-left:auto; font-size:11.5px; color:var(--dim); white-space:nowrap; }
+.action{ font-size:17px; line-height:1.45; font-weight:500; margin:12px 0 10px; color:var(--ink); }
+.why{ font-size:15px; line-height:1.6; color:var(--mut); }
+.flags{ display:flex; gap:9px; flex-wrap:wrap; margin:16px 0 0; padding:0; list-style:none; }
+.flags li{
+  font-size:14px; color:var(--urgent); border:1px solid #5a4318; background:rgba(245,165,36,.08);
+  border-radius:var(--r-pill); padding:7px 14px;
+}
+.hear{ margin-top:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+#audioWrap audio{ width:100%; margin-top:14px; }
+.err{ color:var(--emerg); font-size:14px; margin-top:10px; }
+
+/* management plan (Task #22). Grounded, multi-component, every line cited. */
+.plan-pending{ margin-top:18px; font-size:13.5px; color:var(--dim); }
+.plan{
+  margin-top:20px; border:1px solid var(--line-2); border-radius:var(--r);
+  background:#0b0e0f; overflow:hidden; animation:cite-in .35s var(--ease) both;
+}
+.plan-head{
+  display:flex; align-items:center; gap:9px; padding:14px 17px; border-bottom:1px solid var(--line);
+  font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--ink);
+}
+.pgroup{ padding:14px 17px; border-bottom:1px solid var(--line); }
+.pgroup:last-of-type{ border-bottom:0; }
+.pgroup h4{ margin:0 0 10px; font-size:12.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); }
+.prow{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:5px 0; }
+.prow .ptext{ font-size:15px; line-height:1.5; color:var(--ink); }
+.cmini{ flex:none; font-size:11.5px; color:var(--dim); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.med{ padding:9px 0; border-bottom:1px dashed var(--line); }
+.med:last-child{ border-bottom:0; padding-bottom:0; }
+.med:first-child{ padding-top:0; }
+.med-top{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.med-name{ font-size:16px; font-weight:600; color:var(--ink); }
+.med-sub{ margin-top:4px; font-size:13.5px; color:var(--mut); }
+/* Per-weight-band dosing table — the real WHO amounts. */
+.dose{ width:100%; margin-top:8px; border-collapse:collapse; font-size:13.5px; }
+.dose thead th{ text-align:left; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); padding:0 0 4px; border-bottom:1px solid var(--line); }
+.dose td{ padding:5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+.dose tr:last-child td{ border-bottom:0; }
+.dose .dose-band{ color:var(--mut); padding-right:14px; }
+.dose .dose-amt{ color:var(--ink); font-weight:600; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.prow-detail{ margin-top:3px; font-size:13px; line-height:1.5; color:var(--mut); }
+.plan-foot{ padding:13px 17px; background:var(--surf-2); font-size:12.5px; line-height:1.5; color:var(--dim); }
+
+/* live performance readout */
+.perf-lead{ font-size:14px; color:var(--mut); margin:0 0 12px; }
+/* on-device proof chips — the egress-guard guarantee + the resident model, straight from /health. */
+.od-proof{ display:flex; gap:9px; flex-wrap:wrap; margin:0 0 16px; }
+.od-chip{ display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:var(--r-pill);
+  font-size:12.5px; color:var(--mut); background:var(--surf-2); border:1px solid var(--line-2); }
+.od-chip svg{ width:14px; height:14px; flex:none; }
+.od-chip--seal{ color:var(--accent); background:var(--accent-wash); border-color:var(--accent-line); font-weight:500; }
+.perf-lead b{ color:var(--ink); font-weight:600; }
+.nums{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:var(--r); overflow:hidden;
+}
+.num{ background:var(--surf-2); padding:15px 14px; }
+.num .k{ font-size:12px; color:var(--dim); }
+.num .v{
+  font-family:var(--font-display); font-size:25px; font-weight:700; margin-top:7px; font-variant-numeric:tabular-nums;
+}
+.num .v small{ font-size:13px; color:var(--mut); font-weight:500; font-family:var(--font-body); margin-left:2px; }
+.num.is-live .v{ color:var(--accent); }
+.perf-foot{ margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; color:var(--dim); }
+.perf-foot a{ color:var(--accent); text-decoration:none; }
+@media (hover: hover){ .perf-foot a:hover{ text-decoration:underline; } }
+
+@media (max-width:560px){
+  .nums{ grid-template-columns:repeat(2,1fr); }
+  .verdict .sev{ font-size:22px; }
+  .actions .btn--primary{ flex:1; }
+  .reason{ max-height:150px; }
+}
