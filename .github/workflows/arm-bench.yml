@@ -1,0 +1,110 @@
+name: arm-bench
+# Stage 0 §C stand-in: the Stage 0 benchmark on GitHub's free arm64 runner (4 vCPU Cobalt 100, 16 GB).
+# Not a host — a measurement. Same llama.cpp build flags and llama-server flags as the Oracle box.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch with service/ to benchmark"
+        default: stage-0
+      runs:
+        description: "Runs per case (run 1 = first-sight)"
+        default: "3"
+permissions:
+  contents: read
+jobs:
+  bench:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        quant: [q4_k_m-imat, iq4_nl-imat]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Machine
+        run: |
+          { echo "## ARM runner (${{ matrix.quant }})"; echo; echo '```'; nproc; lscpu | grep -E "Model name|Architecture|Flags" | cut -c1-200; free -g | head -2; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Cache llama.cpp build
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: llama.cpp/build/bin/llama-server
+          key: llama-server-arm64-${{ runner.os }}-v1
+      - name: Build llama-server (same flags as cloud-init)
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y cmake build-essential
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp
+          cmake -S llama.cpp -B llama.cpp/build -DGGML_NATIVE=ON -DLLAMA_CURL=OFF
+          cmake --build llama.cpp/build --target llama-server -j"$(nproc)"
+      - name: Cache model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: models/medpsy-4b-${{ matrix.quant }}.gguf
+          key: medpsy-4b-${{ matrix.quant }}
+      - name: Download model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p models
+          curl -fL --retry 3 -o "models/medpsy-4b-${{ matrix.quant }}.gguf" \
+            "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-${{ matrix.quant }}.gguf"
+      - name: Install service deps
+        run: npm ci --workspace service --include-workspace-root --no-audit --no-fund
+      - name: Start llama-server (same flags as the unit)
+        run: |
+          nohup llama.cpp/build/bin/llama-server -m "models/medpsy-4b-${{ matrix.quant }}.gguf" \
+            --host 127.0.0.1 --port 8081 -c 2048 -t "$(nproc)" --jinja --reasoning-budget 0 \
+            > llama-server.log 2>&1 &
+          for i in $(seq 1 120); do
+            curl -sf http://127.0.0.1:8081/health >/dev/null && exit 0; sleep 2
+          done
+          echo "llama-server never became healthy"; tail -50 llama-server.log; exit 1
+      - name: Bench
+        working-directory: service
+        env:
+          BENCH_COMBOS: llamacpp:medpsy-4b
+          BENCH_RUNS: ${{ inputs.runs }}
+          LLAMA_SERVER_URL: http://127.0.0.1:8081
+        run: npx tsx scripts/bench.ts --out ../bench-out 2> ../bench.err | tee ../bench.log
+      - name: First-sight summary
+        run: |
+          cat > "$RUNNER_TEMP/first-sight.mjs" <<'JS'
+          // Reads the bench CSVs in a directory and prints a markdown block of first-sight (run 1) numbers.
+          import { readdirSync, readFileSync } from "node:fs";
+          const [dir, label] = process.argv.slice(2);
+          const rows = readdirSync(dir).filter((f) => f.endsWith(".csv")).flatMap((f) => {
+            const [head, ...body] = readFileSync(`${dir}/${f}`, "utf8").trim().split("\n");
+            const cols = head.split(",");
+            return body.map((l) => Object.fromEntries(l.split(",").map((v, i) => [cols[i], v])));
+          });
+          const pct = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.ceil(p * s.length) - 1)]; };
+          const first = rows.filter((r) => r.run === "1");
+          const warm = rows.filter((r) => r.run !== "1");
+          const ms = (rs) => rs.map((r) => Number(r.total_ms));
+          const hits = (rs) => `${rs.filter((r) => r.correct === "true").length}/${rs.length}`;
+          const inSample = first.filter((r) => r.heldout !== "true"), held = first.filter((r) => r.heldout === "true");
+          const tok = Math.round(10 * pct(first.map((r) => Number(r.tokens_per_s)).filter(Number.isFinite), 0.5)) / 10;
+          console.log(`\n### First-sight (run 1) — ${label}\n`);
+          console.log(`| first-sight p50 | first-sight p95 | warm-repeat p50 | tok/s | top-1 in-sample | top-1 held-out |`);
+          console.log(`|---|---|---|---|---|---|`);
+          console.log(`| ${pct(ms(first), 0.5)} ms | ${pct(ms(first), 0.95)} ms | ${warm.length ? pct(ms(warm), 0.5) + " ms" : "n/a"} | ${tok} | ${hits(inSample)} | ${hits(held)} |\n`);
+          console.log(`| case | first-sight ms | top1 | ok |\n|---|---|---|---|`);
+          for (const r of first) console.log(`| ${r.case}${r.heldout === "true" ? " (held-out)" : ""} | ${r.total_ms} | ${r.top1} | ${r.correct} |`);
+          JS
+          node "$RUNNER_TEMP/first-sight.mjs" bench-out "${{ matrix.quant }}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arm-bench-${{ matrix.quant }}
+          path: |
+            bench-out/
+            bench.log
+            bench.err
+            llama-server.log
